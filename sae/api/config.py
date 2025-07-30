@@ -4,7 +4,7 @@
 import frappe
 
 from sae.install import get_app_status, validate_config
-from sae.utils.sfu_config import get_media_constraints, get_sfu_config, get_webrtc_config, validate_sfu_config
+from sae.utils.sfu_config import get_sfu_config
 from sae.utils.sfu_manager import get_sfu_manager
 
 
@@ -46,24 +46,6 @@ def test_sfu_connection():
 		}
 	except Exception as e:
 		frappe.log_error(f"SFU connection test failed: {e!s}")
-		return {"success": False, "error": str(e)}
-
-
-@frappe.whitelist()
-def get_webrtc_configuration():
-	"""Get WebRTC configuration for client"""
-	try:
-		return {"success": True, "config": get_webrtc_config()}
-	except Exception as e:
-		return {"success": False, "error": str(e)}
-
-
-@frappe.whitelist()
-def get_media_configuration(quality="medium"):
-	"""Get media constraints configuration for specified quality"""
-	try:
-		return {"success": True, "constraints": get_media_constraints(quality)}
-	except Exception as e:
 		return {"success": False, "error": str(e)}
 
 
@@ -115,31 +97,6 @@ def get_active_meetings():
 
 		return {"success": True, "meetings": meetings}
 	except Exception as e:
-		return {"success": False, "error": str(e)}
-
-
-@frappe.whitelist()
-def force_close_meeting(meeting_id):
-	"""Force close a meeting (admin function)"""
-	try:
-		meeting = frappe.get_doc("Sae Meeting", meeting_id)
-
-		# Mark as inactive
-		meeting.is_active = 0
-		meeting.save(ignore_permissions=True)
-
-		# Notify all participants
-		meeting.notify_room_closed()
-
-		# Disconnect from SFU
-		sfu_manager = get_sfu_manager()
-		members = meeting.get_members()
-		for member in members:
-			sfu_manager.leave_room(meeting_id, member)
-
-		return {"success": True, "message": f"Meeting {meeting_id} has been closed"}
-	except Exception as e:
-		frappe.log_error(f"Failed to force close meeting {meeting_id}: {e!s}")
 		return {"success": False, "error": str(e)}
 
 

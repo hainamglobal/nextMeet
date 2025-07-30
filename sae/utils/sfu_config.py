@@ -8,7 +8,7 @@ import frappe
 def get_sfu_config():
 	"""Get SFU configuration from site config or defaults"""
 	return {
-		"sfu_server_url": frappe.conf.get("sfu_server_url", "http://10.11.0.54"),
+		"sfu_server_url": frappe.conf.get("sfu_server_url", "http://localhost"),
 		"sfu_server_port": frappe.conf.get("sfu_server_port", 3000),
 		"sfu_api_key": frappe.conf.get("sfu_api_key", ""),
 		"sfu_secret": frappe.conf.get("sfu_secret", ""),
@@ -36,18 +36,6 @@ def validate_sfu_config():
 	return config
 
 
-# Default WebRTC configuration
-DEFAULT_WEBRTC_CONFIG = {
-	"iceServers": [
-		{"urls": "stun:stun.l.google.com:19302"},
-		{"urls": "stun:stun1.l.google.com:19302"},
-		{"urls": "stun:stun2.l.google.com:19302"},
-	],
-	"iceCandidatePoolSize": 10,
-	"bundlePolicy": "max-bundle",
-	"rtcpMuxPolicy": "require",
-}
-
 # Media constraints for different quality levels
 MEDIA_CONSTRAINTS = {
 	"low": {
@@ -68,15 +56,3 @@ MEDIA_CONSTRAINTS = {
 def get_media_constraints(quality="medium"):
 	"""Get media constraints for specified quality level"""
 	return MEDIA_CONSTRAINTS.get(quality, MEDIA_CONSTRAINTS["medium"])
-
-
-def get_webrtc_config():
-	"""Get WebRTC configuration with custom STUN/TURN servers if configured"""
-	config = DEFAULT_WEBRTC_CONFIG.copy()
-
-	# Add custom TURN servers if configured
-	turn_servers = frappe.conf.get("turn_servers", [])
-	if turn_servers:
-		config["iceServers"].extend(turn_servers)
-
-	return config

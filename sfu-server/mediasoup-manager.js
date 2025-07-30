@@ -352,46 +352,46 @@ class MediasoupManager {
     console.log(`📊 Total producers in global map: ${this.producers.size}`);
 
     // Add producer event listeners for debugging
-    producer.on('score', (score) => {
-      console.log(`📊 Producer ${producer.id} (${kind}) score event:`, score);
-      if (score.length > 0) {
-        const scores = score.map(s => s.score);
-        if (scores.some(s => s < 5)) {
-          console.warn(`⚠️ Producer ${producer.id} has low score:`, scores);
-        } else if (scores.some(s => s > 0)) {
-          console.log(`✅ Producer ${producer.id} has positive score:`, scores);
-        } else {
-          console.warn(`⚠️ Producer ${producer.id} has ZERO score - no media flowing:`, scores);
-        }
-      }
-    });
+    // producer.on('score', (score) => {
+    //   console.log(`📊 Producer ${producer.id} (${kind}) score event:`, score);
+    //   if (score.length > 0) {
+    //     const scores = score.map(s => s.score);
+    //     if (scores.some(s => s < 5)) {
+    //       console.warn(`⚠️ Producer ${producer.id} has low score:`, scores);
+    //     } else if (scores.some(s => s > 0)) {
+    //       console.log(`✅ Producer ${producer.id} has positive score:`, scores);
+    //     } else {
+    //       console.warn(`⚠️ Producer ${producer.id} has ZERO score - no media flowing:`, scores);
+    //     }
+    //   }
+    // });
 
     // Monitor producer stats periodically
-    const statsInterval = setInterval(async () => {
-      try {
-        const stats = await producer.getStats();
-        console.log(`📊 Producer ${producer.id} (${kind}) stats:`, {
-          score: producer.score,
-          paused: producer.paused,
-          closed: producer.closed,
-          bytesReceived: stats.find(s => s.type === 'inbound-rtp')?.bytesReceived || 0,
-          packetsReceived: stats.find(s => s.type === 'inbound-rtp')?.packetsReceived || 0,
-          packetsLost: stats.find(s => s.type === 'inbound-rtp')?.packetsLost || 0
-        });
+    // const statsInterval = setInterval(async () => {
+    //   try {
+    //     const stats = await producer.getStats();
+    //     console.log(`📊 Producer ${producer.id} (${kind}) stats:`, {
+    //       score: producer.score,
+    //       paused: producer.paused,
+    //       closed: producer.closed,
+    //       bytesReceived: stats.find(s => s.type === 'inbound-rtp')?.bytesReceived || 0,
+    //       packetsReceived: stats.find(s => s.type === 'inbound-rtp')?.packetsReceived || 0,
+    //       packetsLost: stats.find(s => s.type === 'inbound-rtp')?.packetsLost || 0
+    //     });
         
-        // Check if we're receiving any media
-        const inboundStats = stats.find(s => s.type === 'inbound-rtp');
-        if (inboundStats && inboundStats.packetsReceived === 0) {
-          console.warn(`⚠️ Producer ${producer.id} (${kind}) is not receiving any RTP packets from client!`);
-        }
-      } catch (error) {
-        console.warn(`⚠️ Failed to get producer stats: ${error.message}`);
-      }
-    }, 5000); // Check every 5 seconds
+    //     // Check if we're receiving any media
+    //     const inboundStats = stats.find(s => s.type === 'inbound-rtp');
+    //     if (inboundStats && inboundStats.packetsReceived === 0) {
+    //       console.warn(`⚠️ Producer ${producer.id} (${kind}) is not receiving any RTP packets from client!`);
+    //     }
+    //   } catch (error) {
+    //     console.warn(`⚠️ Failed to get producer stats: ${error.message}`);
+    //   }
+    // }, 5000); // Check every 5 seconds
 
-    producer.on('close', () => {
-      clearInterval(statsInterval);
-    });
+    // producer.on('close', () => {
+    //   clearInterval(statsInterval);
+    // });
 
     producer.on('videoorientationchange', (videoOrientation) => {
       console.log(`📱 Producer ${producer.id} video orientation changed:`, videoOrientation);
@@ -673,6 +673,8 @@ class MediasoupManager {
     
     // Get all producers in the room
     for (const [producerId, producerData] of this.producers) {
+      console.log(`🔍 Checking producer ${producerId} ${producerData}`);
+      
       // Note: producerData has { roomId, peerId, producer }
       if (producerData.roomId === roomId && producerData.peerId !== userId) {
         existingProducers.push({
