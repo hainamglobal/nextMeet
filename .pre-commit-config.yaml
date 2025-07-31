@@ -41,6 +41,7 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
           (?x)^(
+              frontend/components.d.ts|
               sae/public/dist/.*|
               cypress/.*|
               .*node_modules.*|
