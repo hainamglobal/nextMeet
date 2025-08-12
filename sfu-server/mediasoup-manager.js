@@ -348,9 +348,6 @@ class MediasoupManager {
     peer.producers.set(producer.id, producer);
     this.producers.set(producer.id, { roomId, peerId, producer });
 
-    console.log(`✅ Producer created: ${producer.id} (${kind}) for peer ${peerId} in room ${roomId}`);
-    console.log(`📊 Total producers in global map: ${this.producers.size}`);
-
     // Add producer event listeners for debugging
     // producer.on('score', (score) => {
     //   console.log(`📊 Producer ${producer.id} (${kind}) score event:`, score);
@@ -668,27 +665,40 @@ class MediasoupManager {
 
   async getExistingProducers(roomId, userId) {
     console.log(`📋 Getting existing producers for room: ${roomId}, excluding user: ${userId}`);
-    
+
     const existingProducers = [];
-    
-    // Get all producers in the room
-    for (const [producerId, producerData] of this.producers) {
-      console.log(`🔍 Checking producer ${producerId} ${producerData.producer.id}`);
-      
-      // Note: producerData has { roomId, peerId, producer }
-      if (producerData.roomId === roomId && producerData.peerId !== userId) {
+
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      return existingProducers;
+    }
+
+    for (const [peerId, peer] of room.peers) {
+      // Exclude requester
+      if (peerId === userId) continue;
+
+      for (const producer of peer.producers.values()) {
         existingProducers.push({
-          id: producerData.producer.id,
-          roomId: producerData.roomId,
-          user_id: producerData.peerId, // Use user_id to match frontend expectations
-          kind: producerData.producer.kind,
-          paused: producerData.producer.paused
+          id: producer.id,
+          roomId,
+          user_id: peerId,
+          kind: producer.kind,
+          paused: producer.paused,
         });
       }
     }
-    
-    console.log(`✅ Found ${existingProducers.length} existing producers in room ${roomId}`);
-    console.log('Existing producers details:', existingProducers);
+
+    // If empty, provide a concise debug snapshot to diagnose timing/mismatch issues
+    if (existingProducers.length === 0) {
+      const globalInRoom = Array.from(this.producers.values())
+        .filter((p) => p.roomId === roomId)
+        .map((p) => ({ id: p.producer.id, peerId: p.peerId, kind: p.producer.kind }));
+
+      const roomPeerProducerCounts = Object.fromEntries(
+        Array.from(room.peers).map(([pid, p]) => [pid, p.producers.size])
+      );
+    }
+
     return existingProducers;
   }
 
