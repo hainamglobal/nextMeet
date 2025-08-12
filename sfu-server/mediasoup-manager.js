@@ -673,7 +673,7 @@ class MediasoupManager {
     
     // Get all producers in the room
     for (const [producerId, producerData] of this.producers) {
-      console.log(`🔍 Checking producer ${producerId} ${producerData}`);
+      console.log(`🔍 Checking producer ${producerId} ${producerData.producer.id}`);
       
       // Note: producerData has { roomId, peerId, producer }
       if (producerData.roomId === roomId && producerData.peerId !== userId) {
