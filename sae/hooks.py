@@ -239,5 +239,5 @@ app_license = "agpl-3.0"
 
 
 website_route_rules = [
-	{"from_route": "/frontend/<path:app_path>", "to_route": "frontend"},
+	{"from_route": "/sae/<path:app_path>", "to_route": "sae"},
 ]
