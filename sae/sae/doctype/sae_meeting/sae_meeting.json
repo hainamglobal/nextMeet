@@ -5,19 +5,53 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_voms"
+  "section_break_voms",
+  "is_active",
+  "members",
+  "column_break_1",
+  "created_by",
+  "started_at"
  ],
  "fields": [
   {
    "fieldname": "section_break_voms",
    "fieldtype": "Section Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "members",
+   "fieldtype": "Long Text",
+   "label": "Members",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-06-25 15:44:00.661051",
- "modified_by": "Administrator",
+ "modified": "2025-08-13 12:54:30.383771",
+ "modified_by": "suhail@frappe.io",
  "module": "Sae",
  "name": "Sae Meeting",
  "owner": "Administrator",
@@ -31,6 +65,18 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sae User",
    "share": 1,
    "write": 1
   }

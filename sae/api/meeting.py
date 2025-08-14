@@ -12,9 +12,6 @@ from sae.utils.sfu_manager import ensure_sfu_connection
 @frappe.whitelist()
 @rate_limit(limit=10, seconds=60 * 60)
 def create() -> str:
-	"""
-	Create a new meeting and return its name.
-	"""
 	meeting = frappe.get_doc(
 		{
 			"doctype": "Sae Meeting",
@@ -35,7 +32,6 @@ def create() -> str:
 def get_sfu_connection_details(meeting_id: str) -> dict:
 	"""
 	Get SFU connection details for direct client-to-SFU communication
-	This replaces the relay pattern with direct communication
 	"""
 	try:
 		# Validate meeting access
@@ -86,22 +82,18 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 
 @frappe.whitelist()
 def join_meeting(meeting_id: str) -> dict:
-	"""
-	Join a meeting (Frappe-side only, client will connect to SFU directly)
-	"""
 	try:
 		# Get meeting document
 		meeting = frappe.get_doc("Sae Meeting", meeting_id)
 
 		# Join the meeting in Frappe
-		meeting.join(frappe.session.user)
-
-		return {
-			"success": True,
-			"meeting_id": meeting_id,
-			"user_id": frappe.session.user,
-			"members": meeting.get_members(),
-		}
+		if meeting.can_join(frappe.session.user):
+			return {
+				"success": True,
+				"meeting_id": meeting_id,
+			}
+		else:
+			return {"success": False, "error": "Access denied"}
 	except Exception as e:
 		frappe.log_error(f"Failed to join meeting {meeting_id}: {e!s}")
 		return {"success": False, "error": str(e)}
@@ -109,15 +101,12 @@ def join_meeting(meeting_id: str) -> dict:
 
 @frappe.whitelist()
 def leave_meeting(meeting_id: str) -> dict:
-	"""
-	Leave a meeting (Frappe-side only, client will disconnect from SFU directly)
-	"""
 	try:
 		# Get meeting document
-		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+		# meeting = frappe.get_doc("Sae Meeting", meeting_id)
 
 		# Leave the meeting in Frappe
-		meeting.leave(frappe.session.user)
+		# meeting.leave(frappe.session.user)
 
 		return {"success": True, "meeting_id": meeting_id, "user_id": frappe.session.user}
 	except Exception as e:
