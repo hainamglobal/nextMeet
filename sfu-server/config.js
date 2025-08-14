@@ -4,21 +4,32 @@ const os = require('os');
 // Helper function to get server's local IP address
 function getServerIP() {
   const interfaces = os.networkInterfaces();
-  
-  // Look for the first non-internal IPv4 address
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      // Skip internal (loopback) and non-IPv4 addresses
       if (iface.family === 'IPv4' && !iface.internal) {
         console.log(`🔍 Auto-detected server IP: ${iface.address}`);
         return iface.address;
       }
     }
   }
-  
-  // Fallback to localhost if no external IP found (development)
   console.warn('⚠️ Could not auto-detect server IP, using localhost. This will only work for local testing!');
   return '127.0.0.1';
+}
+
+function buildListenIps() {
+  const baseListenIp = process.env.WEBRTC_LISTEN_IP || '0.0.0.0';
+  const announcedEnv = process.env.WEBRTC_ANNOUNCED_IP || process.env.WEBRTC_ANNOUNCED_IPS; // accept legacy plural
+  if (announcedEnv) {
+    const ips = Array.from(new Set(announcedEnv.split(',').map(s => s.trim()).filter(Boolean)));
+    if (ips.length === 0) {
+      console.warn('⚠️ WEBRTC_ANNOUNCED_IP provided but empty after parsing; falling back to auto-detect');
+    } else {
+      console.log(`🌐 Using announced IP list from env: ${ips.join(', ')}`);
+      return ips.map(ip => ({ ip: baseListenIp, announcedIp: ip }));
+    }
+  }
+  // Fallback single entry
+  return [{ ip: baseListenIp, announcedIp: getServerIP() }];
 }
 
 const mediaCodecs = [
@@ -70,12 +81,7 @@ const mediaCodecs = [
 ];
 
 const webRtcTransportOptions = {
-  listenIps: [
-    {
-      ip: process.env.WEBRTC_LISTEN_IP || '0.0.0.0',
-      announcedIp: getServerIP(),
-    },
-  ],
+  listenIps: buildListenIps(),
   enableUdp: true,
   enableTcp: true,
   preferUdp: true,
@@ -100,7 +106,7 @@ const webRtcTransportOptions = {
 };
 
 const workerSettings = {
-  logLevel: process.env.MEDIASOUP_WORKER_LOGLEVELS || 'warn',
+  logLevel: process.env.MEDIASOUP_WORKER_LOGLEVEL || 'warn',
   logTags: [
     'info',
     'ice',
@@ -119,13 +125,18 @@ const workerSettings = {
   rtcMaxPort: parseInt(process.env.RTC_MAX_PORT) || 49999,
 };
 
+function resolveNumWorkers() {
+  const envVal = parseInt(process.env.MEDIASOUP_NUM_WORKERS);
+  if (!isNaN(envVal) && envVal > 0) return envVal;
+  const cpuCount = os.cpus()?.length || 2;
+  return Math.max(1, cpuCount);
+}
+
 module.exports = {
   mediasoup: {
-    numWorkers: parseInt(process.env.MEDIASOUP_NUM_WORKERS) || 2,
+    numWorkers: resolveNumWorkers(),
     worker: workerSettings,
-    router: {
-      mediaCodecs,
-    },
+    router: { mediaCodecs },
     webRtcTransport: webRtcTransportOptions,
   },
 };

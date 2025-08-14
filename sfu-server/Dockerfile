@@ -1,46 +1,36 @@
-FROM node:18-alpine
+ARG NODE_VERSION=20-bookworm-slim
 
-# Install dependencies for native modules
-RUN apk add --no-cache \
-    make \
-    g++ \
-    python3 \
-    py3-pip
-
-# Set working directory
+# --- Build stage (installs build deps & compiles native modules) ---
+FROM node:${NODE_VERSION} AS build
 WORKDIR /app
-
-# Copy package files
+# Install build dependencies for mediasoup (glibc base so prebuilt usually works; still keep toolchain)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 build-essential python3-pip pkg-config libssl-dev git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy application code
+ENV NODE_ENV=production
+RUN npm ci --omit=dev
 COPY . .
+# (If you have any build step for frontend assets, run it here)
 
-# Create logs directory
-RUN mkdir -p logs
+# --- Runtime stage (minimal) ---
+FROM node:${NODE_VERSION} AS runtime
+WORKDIR /app
+ENV NODE_ENV=production \
+  PORT=3000
 
-# Expose port
+RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates curl \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app /app
+
+# Create logs dir and set ownership to existing 'node' user (already in base image)
+RUN mkdir -p /app/logs && chown -R node:node /app
+
+USER node
+
 EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD curl -fsS http://127.0.0.1:3000/health || exit 1
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "const http = require('http'); \
-    const options = { hostname: 'localhost', port: 3000, path: '/health', timeout: 2000 }; \
-    const req = http.request(options, (res) => { \
-      if (res.statusCode === 200) process.exit(0); \
-      else process.exit(1); \
-    }); \
-    req.on('error', () => process.exit(1)); \
-    req.on('timeout', () => process.exit(1)); \
-    req.end();"
-
-# Run as non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-USER nodejs
-
-# Start the server
-CMD ["node", "server.js"]
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["node","server.js"]
