@@ -9,7 +9,7 @@
 		"preview": "vite preview",
 		"lint": "biome check --write .",
 		"format": "biome check --fix .",
-		"copy-html-entry": "cp ../sae/public/frontend/index.html ../sae/www/frontend.html"
+		"copy-html-entry": "cp ../sae/public/frontend/index.html ../sae/www/sae.html"
 	},
 	"dependencies": {
 		"feather-icons": "^4.29.2",
