@@ -6,8 +6,6 @@ import json
 import frappe
 from frappe.rate_limiter import rate_limit
 
-from sae.utils.sfu_manager import ensure_sfu_connection
-
 
 @frappe.whitelist()
 @rate_limit(limit=10, seconds=60 * 60)
@@ -17,13 +15,6 @@ def create() -> str:
 			"doctype": "Sae Meeting",
 		}
 	).insert()
-
-	# Create room on SFU
-	try:
-		sfu_manager = ensure_sfu_connection()
-		sfu_manager.create_room(meeting.name)
-	except Exception as e:
-		frappe.log_error(f"Failed to create room on SFU: {e!s}")
 
 	return meeting.name
 
@@ -126,7 +117,6 @@ def cleanup_user_meetings(user_id: str | None = None) -> dict:
 		# Find all active meetings for this user
 		meetings = frappe.get_all("Sae Meeting", filters={"status": "Active"}, fields=["name"])
 
-		sfu_manager = ensure_sfu_connection()
 		cleaned_meetings = []
 
 		for meeting in meetings:
@@ -135,7 +125,6 @@ def cleanup_user_meetings(user_id: str | None = None) -> dict:
 				try:
 					# Leave the meeting
 					meeting_doc.leave(user_id)
-					sfu_manager.leave_room(meeting.name, user_id)
 					cleaned_meetings.append(meeting.name)
 					frappe.logger().info(f"Cleaned up user {user_id} from meeting {meeting.name}")
 				except Exception as e:
