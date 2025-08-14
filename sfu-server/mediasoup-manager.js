@@ -368,8 +368,6 @@ class MediasoupManager {
   }
 
   async createConsumer(transportId, producerId, rtpCapabilities) {
-    console.log(`🎥 Starting consumer creation for producer ${producerId} on transport ${transportId}`);
-    
     const transportData = this.transports.get(transportId);
     if (!transportData) {
       console.error(`❌ Transport ${transportId} not found`);
@@ -387,35 +385,11 @@ class MediasoupManager {
     const { roomId, peerId, transport } = transportData;
     const room = this.rooms.get(roomId);
 
-    // Enhanced transport validation
-    console.log(`🔍 Transport validation for consumer creation:`, {
-      transportId: transport.id,
-      connectionState: transport.connectionState,
-      iceState: transport.iceState,
-      dtlsState: transport.dtlsState,
-      closed: transport.closed,
-      // Check all available transport properties for debugging
-      availableProperties: Object.getOwnPropertyNames(transport).filter(prop => !prop.startsWith('_')),
-      transportType: typeof transport,
-      constructor: transport.constructor.name,
-    });
-
-    // Additional state checking
-    console.log(`🔍 Transport state details:`, {
-      iceParameters: !!transport.iceParameters,
-      iceCandidates: transport.iceCandidates?.length || 0,
-      dtlsParameters: !!transport.dtlsParameters,
-    });
-
     // Validate transport is not closed or failed
     if (transport.closed) {
       throw new Error(`Transport ${transportId} is closed - cannot create consumer`);
     }
 
-    // For server-side MediaSoup transports, we should allow consumer creation even if DTLS is not connected yet
-    // The connection will be established when the client connects
-    console.log(`🔍 Checking transport readiness - DTLS state: ${transport.dtlsState}`);
-    
     if (transport.dtlsState === 'failed') {
       console.error(`❌ Transport ${transportId} DTLS failed!`);
       throw new Error(`Transport ${transportId} DTLS connection failed`);
@@ -425,53 +399,20 @@ class MediasoupManager {
       console.error(`❌ Transport ${transportId} DTLS closed!`);
       throw new Error(`Transport ${transportId} DTLS connection is closed`);
     }
-
-    // Log but allow all other states (new, connecting, connected)
-    if (transport.dtlsState === 'new') {
-      console.log(`ℹ️ Transport ${transportId} DTLS is 'new' - connection will be established by client`);
-    } else if (transport.dtlsState === 'connecting') {
-      console.log(`⏳ Transport ${transportId} DTLS is connecting`);
-    } else if (transport.dtlsState === 'connected') {
-      console.log(`✅ Transport ${transportId} DTLS is connected`);
-    } else {
-      console.log(`🔍 Transport ${transportId} DTLS state: ${transport.dtlsState}`);
-    }
-
-    // Enhanced producer validation
-    console.log(`🔍 Producer validation:`, {
-      producerId: producerData.producer.id,
-      kind: producerData.producer.kind,
-      paused: producerData.producer.paused,
-      closed: producerData.producer.closed,
-      score: producerData.producer.score,
-    });
-
     if (producerData.producer.closed) {
       throw new Error(`Producer ${producerId} is closed - cannot create consumer`);
     }
 
-    // Enhanced canConsume check with detailed logging
-    console.log(`🔍 Checking if router can consume producer ${producerId}...`);
     const canConsumeResult = room.router.canConsume({
       producerId,
       rtpCapabilities,
     });
-
-    console.log(`🔍 canConsume result:`, canConsumeResult);
-    console.log(`🔍 Producer RTP parameters:`, {
-      codecs: producerData.producer.rtpParameters?.codecs?.map(c => c.mimeType) || [],
-      headerExtensions: producerData.producer.rtpParameters?.headerExtensions?.length || 0,
-      encodings: producerData.producer.rtpParameters?.encodings?.length || 0,
-    });
-    
     if (!canConsumeResult) {
       console.error(`❌ Router cannot consume producer ${producerId}`);
       console.error(`🔍 Producer RTP capabilities:`, producerData.producer.rtpParameters?.codecs);
       console.error(`🔍 Consumer RTP capabilities:`, rtpCapabilities?.codecs?.map(c => c.mimeType));
       throw new Error(`Router cannot consume producer ${producerId} - RTP capabilities mismatch`);
     }
-
-    console.log(`✅ Router can consume producer, creating consumer for peer ${peerId}`);
 
     try {
       const consumer = await transport.consume({
@@ -480,17 +421,6 @@ class MediasoupManager {
         paused: true, // Consumers should start paused by default
       });
 
-      // Validate consumer creation
-      console.log(`🔍 Consumer created successfully:`, {
-        id: consumer.id,
-        producerId: consumer.producerId,
-        kind: consumer.kind,
-        paused: consumer.paused,
-        closed: consumer.closed,
-        score: consumer.score,
-        supportedCodecs: consumer.supportedCodecs?.map(c => c.mimeType) || [],
-        rtpParametersCodecs: consumer.rtpParameters?.codecs?.map(c => c.mimeType) || [],
-      });
 
       // Add enhanced event listeners for consumer debugging
       consumer.on('transportclose', () => {
@@ -526,27 +456,8 @@ class MediasoupManager {
       console.log(`✅ Consumer ${consumer.id} (${consumer.kind}) created for peer ${peerId} from producer ${producerId}`);
       console.log(`📊 Total consumers in room ${roomId}: ${peer.consumers.size}`);
 
-      // Check transport state after consumer creation
-      console.log(`🔍 Transport state after consumer creation:`, {
-        transportId: transport.id,
-        iceState: transport.iceState,
-        dtlsState: transport.dtlsState,
-        closed: transport.closed,
-      });
-
-      console.log(`🔍 Consumer final validation:`, {
-        consumerId: consumer.id,
-        paused: consumer.paused,
-        closed: consumer.closed,
-        kind: consumer.kind,
-        score: consumer.score,
-      });
-
-      // Resume the consumer immediately since it starts paused by default
       if (consumer.paused) {
-        console.log(`▶️ Resuming consumer ${consumer.id} to start media flow`);
         await consumer.resume();
-        console.log(`✅ Consumer ${consumer.id} resumed, paused state: ${consumer.paused}`);
       }
 
       return {
@@ -576,8 +487,6 @@ class MediasoupManager {
 
     const { roomId, peerId, producer } = producerData;
     
-    console.log(`🎬 Closing producer ${producerId} for peer ${peerId}`);
-    
     producer.close();
     
     // Clean up
@@ -595,8 +504,6 @@ class MediasoupManager {
 
     const { roomId, peerId, consumer } = consumerData;
     
-    console.log(`🎥 Closing consumer ${consumerId} for peer ${peerId}`);
-    
     consumer.close();
     
     // Clean up
@@ -609,8 +516,6 @@ class MediasoupManager {
   }
 
   getRouterRtpCapabilities(roomId) {
-    console.log(`🔍 Getting RTP capabilities for room: ${roomId}`);
-    
     const router = this.routers.get(roomId);
     if (!router) {
       console.error(`❌ Room ${roomId} not found when getting RTP capabilities`);
@@ -618,7 +523,6 @@ class MediasoupManager {
       throw new Error(`Room ${roomId} not found`);
     }
     
-    console.log(`✅ Returning RTP capabilities for room: ${roomId}`);
     return router.rtpCapabilities;
   }
 
