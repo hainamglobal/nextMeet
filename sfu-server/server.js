@@ -223,7 +223,8 @@ class SFUServer {
             roomId: roomId,
             participantId: socket.userId,  // Use participantId for consistency
             producerId: producer.id,       // Use producerId for consistency
-            kind: producer.kind
+            kind: producer.kind,
+            paused: false
           });
         } catch (error) {
           console.error('❌ Error creating producer:', error);
@@ -290,18 +291,30 @@ class SFUServer {
           
           // Also emit producer_created events for each existing producer
           // so the new participant can subscribe to them
-          producers.forEach(producer => {
+      producers.forEach(producer => {
             socket.emit('producer_created', {
               roomId: producer.roomId,
               producerId: producer.id,  // Use producerId (not producer_id)
               participantId: producer.user_id,  // Use participantId (not user_id)
-              kind: producer.kind
+        kind: producer.kind,
+        paused: !!producer.paused
             });
           });
           
           console.log(`✅ Sent ${producers.length} existing producers to ${userId}`);
         } catch (error) {
           console.error('❌ Error getting existing producers:', error);
+          if (callback) callback({ success: false, error: error.message });
+        }
+      });
+
+      socket.on('get_room_participants', async (data, callback) => {
+        try {
+          const roomId = socket.meetingId;
+          const participants = this.mediasoup.getRoomParticipants(roomId);
+          if (callback) callback({ success: true, participants });
+        } catch (error) {
+          console.error('❌ Error getting room participants:', error);
           if (callback) callback({ success: false, error: error.message });
         }
       });
@@ -338,9 +351,16 @@ class SFUServer {
       });
 
       // Media control
-      socket.on('media_control', (data) => {
+      socket.on('media_control', async (data) => {
         const { action } = data;
         const roomId = socket.meetingId;
+        // Apply on server: update flags + pause/resume local producers
+        try {
+          await this.mediasoup.applyMediaControl(roomId, socket.userId, action);
+        } catch (e) {
+          console.warn('⚠️ Failed to apply media control on server:', e.message);
+        }
+        // Notify other peers (exclude sender)
         socket.to(roomId).emit('media_control_update', {
           participantId: socket.userId,
           action,
@@ -365,6 +385,10 @@ class SFUServer {
             timestamp: new Date().toISOString()
           });
         }
+      });
+
+      socket.on('connect', async () => {
+        console.log(`🔌 Connected: ${socket.id} (User: ${socket.userId})`);
       });
 
       // Disconnect handling

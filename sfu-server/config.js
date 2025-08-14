@@ -72,10 +72,8 @@ const mediaCodecs = [
 const webRtcTransportOptions = {
   listenIps: [
     {
-      ip: '0.0.0.0',
-      // ip: process.env.WsEBRTC_LISTEN_IP || '0.0.0.0',
+      ip: process.env.WEBRTC_LISTEN_IP || '0.0.0.0',
       announcedIp: getServerIP(),
-      // announcedIp: process.env.WEBRTC_ANNOUNCED_IP || process.env.MEDIASOUP_ANNOUNCED_IP || getServerIP(),
     },
   ],
   enableUdp: true,

@@ -114,9 +114,18 @@ class MediasoupManager {
       return existingPeer;
     }
 
+    // Ensure default media state flags
+    const normalizedInfo = {
+      ...peerInfo,
+      audio_enabled:
+        typeof peerInfo.audio_enabled === 'boolean' ? peerInfo.audio_enabled : true,
+      video_enabled:
+        typeof peerInfo.video_enabled === 'boolean' ? peerInfo.video_enabled : true,
+    };
+
     const peer = {
       id: peerId,
-      info: peerInfo,
+      info: normalizedInfo,
       transports: new Map(),
       producers: new Map(),
       consumers: new Map(),
@@ -198,37 +207,37 @@ class MediasoupManager {
       config.mediasoup.webRtcTransport
     );
 
-    // Add comprehensive event listeners for debugging
-    transport.on('dtlsstatechange', (dtlsState) => {
-      console.log(`🔐 DTLS state changed to ${dtlsState} for peer ${peerId} transport ${transport.id}`);
-      if (dtlsState === 'connected') {
-        console.log(`✅ DTLS handshake completed for transport ${transport.id} - ready for media flow`);
-      } else if (dtlsState === 'failed') {
-        console.error(`❌ DTLS failed for peer ${peerId} transport ${transport.id}`);
-      } else if (dtlsState === 'closed') {
-        console.log(`🔐 DTLS closed, closing transport ${transport.id}`);
-        transport.close();
-      } else if (dtlsState === 'connecting') {
-        console.log(`🔐 DTLS handshake starting for transport ${transport.id}`);
-      }
-    });
+    // Add event listeners for debugging
+    // transport.on('dtlsstatechange', (dtlsState) => {
+    //   console.log(`🔐 DTLS state changed to ${dtlsState} for peer ${peerId} transport ${transport.id}`);
+    //   if (dtlsState === 'connected') {
+    //     console.log(`✅ DTLS handshake completed for transport ${transport.id} - ready for media flow`);
+    //   } else if (dtlsState === 'failed') {
+    //     console.error(`❌ DTLS failed for peer ${peerId} transport ${transport.id}`);
+    //   } else if (dtlsState === 'closed') {
+    //     console.log(`🔐 DTLS closed, closing transport ${transport.id}`);
+    //     transport.close();
+    //   } else if (dtlsState === 'connecting') {
+    //     console.log(`🔐 DTLS handshake starting for transport ${transport.id}`);
+    //   }
+    // });
 
-    transport.on('icestatechange', (iceState) => {
-      console.log(`🧊 ICE state changed to ${iceState} for peer ${peerId} transport ${transport.id}`);
-      if (iceState === 'failed') {
-        console.error(`❌ ICE failed for peer ${peerId} transport ${transport.id}`);
-      } else if (iceState === 'disconnected') {
-        console.warn(`⚠️ ICE disconnected for peer ${peerId} transport ${transport.id}`);
-      }
-    });
+    // transport.on('icestatechange', (iceState) => {
+    //   console.log(`🧊 ICE state changed to ${iceState} for peer ${peerId} transport ${transport.id}`);
+    //   if (iceState === 'failed') {
+    //     console.error(`❌ ICE failed for peer ${peerId} transport ${transport.id}`);
+    //   } else if (iceState === 'disconnected') {
+    //     console.warn(`⚠️ ICE disconnected for peer ${peerId} transport ${transport.id}`);
+    //   }
+    // });
 
-    transport.on('iceselectedtuplechange', (iceSelectedTuple) => {
-      console.log(`🧊 ICE selected tuple changed for peer ${peerId}:`, iceSelectedTuple);
-    });
+    // transport.on('iceselectedtuplechange', (iceSelectedTuple) => {
+    //   console.log(`🧊 ICE selected tuple changed for peer ${peerId}:`, iceSelectedTuple);
+    // });
 
-    transport.on('sctpstatechange', (sctpState) => {
-      console.log(`📡 SCTP state changed to ${sctpState} for peer ${peerId} transport ${transport.id}`);
-    });
+    // transport.on('sctpstatechange', (sctpState) => {
+    //   console.log(`📡 SCTP state changed to ${sctpState} for peer ${peerId} transport ${transport.id}`);
+    // });
 
     // Log transport details
     console.log(`📋 Transport created with details:`, {
@@ -258,15 +267,6 @@ class MediasoupManager {
     if (!transportData) {
       throw new Error(`Transport ${transportId} not found`);
     }
-
-    console.log(`🔗 Connecting transport ${transportId}`);
-    console.log(`📋 DTLS Parameters:`, JSON.stringify(dtlsParameters, null, 2));
-    console.log(`📋 Transport state before connect:`, {
-      id: transportData.transport.id,
-      connectionState: transportData.transport.connectionState,
-      iceState: transportData.transport.iceState,
-      dtlsState: transportData.transport.dtlsState
-    });
     
     try {
       await transportData.transport.connect({ dtlsParameters });
@@ -274,47 +274,6 @@ class MediasoupManager {
       // Wait a bit for the DTLS state to potentially change
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      console.log(`✅ Transport connected: ${transportId}`);
-      console.log(`📋 Transport state after connect:`, {
-        id: transportData.transport.id,
-        connectionState: transportData.transport.connectionState,
-        iceState: transportData.transport.iceState,
-        dtlsState: transportData.transport.dtlsState
-      });
-      
-      // Log if DTLS state is still 'new' after connect - this might indicate a problem
-      if (transportData.transport.dtlsState === 'new') {
-        console.warn(`⚠️ WARNING: Transport DTLS state is still 'new' after connect call - this might indicate DTLS handshake hasn't started`);
-        console.warn(`🔍 DTLS parameters received:`, JSON.stringify(dtlsParameters, null, 2));
-        
-        // Wait a bit longer and check again
-        setTimeout(() => {
-          console.log(`🔍 DTLS state after 2 seconds: ${transportData.transport.dtlsState}`);
-          if (transportData.transport.dtlsState === 'new') {
-            console.error(`❌ CRITICAL: Transport DTLS state is STILL 'new' after 2 seconds - DTLS handshake is not progressing!`);
-            console.error(`🔍 This usually indicates:
-              1. Client hasn't started sending DTLS packets
-              2. Network connectivity issues (firewall/NAT)
-              3. Invalid DTLS parameters
-              4. Client-side WebRTC connection issues`);
-            console.error(`🔍 Transport ICE state: ${transportData.transport.iceState}`);
-            
-            // Check if we have any ICE connection
-            if (transportData.transport.iceState === 'new') {
-              console.error(`❌ ICE state is also 'new' - no network connectivity established`);
-            }
-          }
-        }, 2000);
-        
-        // Check again after 5 seconds
-        setTimeout(() => {
-          console.log(`🔍 Final DTLS/ICE check after 5 seconds:`, {
-            dtlsState: transportData.transport.dtlsState,
-            iceState: transportData.transport.iceState,
-            closed: transportData.transport.closed
-          });
-        }, 5000);
-      }
     } catch (error) {
       console.error(`❌ Failed to connect transport ${transportId}:`, error);
       console.error(`📋 Transport state on error:`, {
@@ -402,7 +361,7 @@ class MediasoupManager {
       console.log(`▶️ Producer ${producer.id} resumed`);
     });
 
-    return {
+  return {
       id: producer.id,
       kind: producer.kind,
     };
@@ -556,9 +515,9 @@ class MediasoupManager {
         }
       });
 
-      consumer.on('layerschange', (layers) => {
-        console.log(`🎚️ Consumer ${consumer.id} layers changed:`, layers);
-      });
+      // consumer.on('layerschange', (layers) => {
+      //   console.log(`🎚️ Consumer ${consumer.id} layers changed:`, layers);
+      // });
 
       const peer = room.peers.get(peerId);
       peer.consumers.set(consumer.id, consumer);
@@ -720,6 +679,81 @@ class MediasoupManager {
       stats.push(this.getRoomStats(roomId));
     }
     return stats;
+  }
+
+  getRoomParticipants(roomId) {
+    const room = this.rooms.get(roomId);
+    if (!room) return [];
+
+    return Array.from(room.peers.entries()).map(([peerId, peer]) => {
+      let audioEnabled = false;
+      let videoEnabled = false;
+      for (const producer of peer.producers.values()) {
+        if (producer.kind === 'audio' && !producer.paused) audioEnabled = true;
+        if (producer.kind === 'video' && !producer.paused) videoEnabled = true;
+      }
+      return {
+        id: peerId,
+        user_id: peerId,
+        info: {
+          ...(peer.info || {}),
+          audio_enabled: audioEnabled,
+          video_enabled: videoEnabled,
+        },
+      };
+    });
+  }
+
+  /**
+   * Apply a media control action to a peer: update flags and pause/resume producers
+   */
+  async applyMediaControl(roomId, peerId, action) {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+
+    const peer = room.peers.get(peerId);
+    if (!peer) return;
+
+    const setFlag = (k, v) => {
+      peer.info = peer.info || {};
+      peer.info[k] = v;
+    };
+
+    const toggleProducers = async (kind, shouldPause) => {
+      for (const producer of peer.producers.values()) {
+        if (producer.kind !== kind) continue;
+        try {
+          if (shouldPause && !producer.paused) {
+            await producer.pause();
+          } else if (!shouldPause && producer.paused) {
+            await producer.resume();
+          }
+        } catch (e) {
+          console.warn(`⚠️ Failed to ${shouldPause ? 'pause' : 'resume'} ${kind} producer ${producer.id}: ${e.message}`);
+        }
+      }
+    };
+
+    switch (action) {
+      case 'mute':
+        setFlag('audio_enabled', false);
+        await toggleProducers('audio', true);
+        break;
+      case 'unmute':
+        setFlag('audio_enabled', true);
+        await toggleProducers('audio', false);
+        break;
+      case 'video_off':
+        setFlag('video_enabled', false);
+        await toggleProducers('video', true);
+        break;
+      case 'video_on':
+        setFlag('video_enabled', true);
+        await toggleProducers('video', false);
+        break;
+      default:
+        break;
+    }
   }
 
   async cleanup() {
