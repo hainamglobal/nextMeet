@@ -1,6 +1,6 @@
-# Sae Video Conferencing App
+# Sae
 
-A comprehensive video conferencing application built with Frappe framework that acts as an intermediary between clients and an SFU (Selective Forwarding Unit) mediasoup server.
+A video conferencing app built with Frappe.
 
 ## Architecture
 
@@ -11,27 +11,27 @@ A comprehensive video conferencing application built with Frappe framework that 
 │             │                └─────────────────────┘
 │             │
 │             │    Socket.IO (JWT Auth)
-│             │ ◄──────────────────────────────────┐
-└─────────────┘                                    │
-                                                   ▼
-                                            ┌─────────────┐
-                                            │ SFU Server  │
-                                            │ (mediasoup) │
-                                            └─────────────┘
+│             │ ◄────────────────────────────────┐
+└─────────────┘                                  │
+                                                 ▼
+                                       ┌─────────────┐
+                                       │ SFU Server  │
+                                       │ (mediasoup) │
+                                       └─────────────┘
 ```
 
 ### Components
 
 1. **Client (Frontend)**: Vue.js application with WebRTC capabilities and direct SFU communication
 2. **Frappe Server**: Handles authentication, permissions, and meeting management
-3. **SFU Server**: Dedicated mediasoup server for WebRTC media routing with JWT authentication
+3. **SFU Server (mediasoup)**: Handles transports, producers/consumers and media routing.
 
 ### Prerequisites
 
 - Frappe Framework (v15+)
-- Node.js (v16+)
+- Node.js 18+ (recommended for mediasoup)
 - Python 3.10+
-- mediasoup SFU server dependencies
+- System deps for mediasoup (libc++, libsrtp, etc.)
 
 ### 1. Install the Frappe App
 
@@ -50,12 +50,12 @@ cd apps/sae/sfu-server
 # Install dependencies (including new JWT support)
 npm install
 
-# Configure environment
 cp .env.example .env
-# Edit .env with your settings:
+# Minimum required settings in .env:
 # JWT_SECRET=your_jwt_secret_here
 # PORT=3000
-# HOST=localhost
+# HOST=0.0.0.0
+# WEBRTC_ANNOUNCED_IP=<public_ip_or_domain>
 
 # Start SFU server
 npm start
@@ -65,24 +65,18 @@ npm start
 
 Add to your site config:
 
-```python
-# JWT secret for SFU authentication (must match SFU .env)
-sfu_secret = "your_jwt_secret_here"
-sfu_server_url = "http://localhost"
-sfu_server_port = 3000
+Add to `site_config.json` (values must match SFU):
+
+```jsonc
+{
+  "sfu_secret": "your_jwt_secret_here",
+  "sfu_server_url": "https://your-domain.example"
+}
 ```
 
-### 4. Install Python Dependencies
+### 4. Build Frontend
 
 ```bash
-# Install Python dependencies
-bench pip install python-socketio python-engineio PyJWT
-```
-
-### 5. Build Frontend
-
-```bash
-# Build frontend with new SFU client
 cd apps/sae/frontend
 yarn install
 yarn build
