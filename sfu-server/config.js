@@ -18,7 +18,7 @@ function getServerIP() {
 
 function buildListenIps() {
   const baseListenIp = process.env.WEBRTC_LISTEN_IP || '0.0.0.0';
-  const announcedEnv = process.env.WEBRTC_ANNOUNCED_IP || process.env.WEBRTC_ANNOUNCED_IPS; // accept legacy plural
+  const announcedEnv = process.env.WEBRTC_ANNOUNCED_IP;
   if (announcedEnv) {
     const ips = Array.from(new Set(announcedEnv.split(',').map(s => s.trim()).filter(Boolean)));
     if (ips.length === 0) {
