@@ -146,6 +146,12 @@ doc_events = {
 # 	}
 # }
 
+# Fixtures
+
+fixtures = [
+	{"dt": "Role", "filters": [["role_name", "like", "Sae %"]]},
+]
+
 # Scheduled Tasks
 # ---------------
 
