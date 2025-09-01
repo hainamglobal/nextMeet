@@ -132,6 +132,12 @@ app_license = "agpl-3.0"
 # ---------------
 # Hook on document methods and events
 
+doc_events = {
+	"User": {
+		"after_insert": "sae.utils.user.assign_sae_role",
+	}
+}
+
 # doc_events = {
 # 	"*": {
 # 		"on_update": "method",
