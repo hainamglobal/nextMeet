@@ -551,6 +551,7 @@ class MediasoupManager {
           user_id: peerId,
           kind: producer.kind,
           paused: producer.paused,
+          isScreen: (producer.appData && producer.appData.type === 'screen') || false,
         });
       }
     }

@@ -295,14 +295,14 @@ class SFUServer {
           
           // Also emit producer_created events for each existing producer
           // so the new participant can subscribe to them
-      producers.forEach(producer => {
+          producers.forEach(producer => {
             socket.emit('producer_created', {
               roomId: producer.roomId,
-              producerId: producer.id,  // Use producerId (not producer_id)
-              participantId: producer.user_id,  // Use participantId (not user_id)
+              producerId: producer.id,
+              participantId: producer.user_id,
               kind: producer.kind,
               paused: !!producer.paused,
-              isScreen: producer?.appData?.type === 'screen'
+              isScreen: !!producer.isScreen
             });
           });
           
