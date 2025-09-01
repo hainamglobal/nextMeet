@@ -210,12 +210,14 @@ class SFUServer {
 
       socket.on('create_producer', async (data, callback) => {
         try {
-          const { transportId, rtpParameters, kind } = data;
+          const { transportId, rtpParameters, kind, appData = {} } = data;
           const producer = await this.mediasoup.createProducer(
-            transportId, rtpParameters, kind
+            transportId, rtpParameters, kind, appData
           );
+
+          const isScreen = (producer.appData && producer.appData.type === 'screen') || appData.type === 'screen';
           
-          if (callback) callback({ success: true, ...producer });
+          if (callback) callback({ success: true, ...producer, isScreen });
           
           // Notify other peers about new producer
           const roomId = socket.meetingId;
@@ -224,7 +226,8 @@ class SFUServer {
             participantId: socket.userId,  // Use participantId for consistency
             producerId: producer.id,       // Use producerId for consistency
             kind: producer.kind,
-            paused: false
+            paused: false,
+            isScreen: isScreen
           });
         } catch (error) {
           console.error('❌ Error creating producer:', error);
@@ -249,16 +252,17 @@ class SFUServer {
       socket.on('close_producer', async (data, callback) => {
         try {
           const { producerId } = data;
-          await this.mediasoup.closeProducer(producerId);
+          const result = await this.mediasoup.closeProducer(producerId);
           
-          if (callback) callback({ success: true });
+          if (callback) callback({ success: true, ...result });
           
           // Notify other peers
           const roomId = socket.meetingId;
           socket.to(roomId).emit('producer_closed', {
             roomId: roomId,
             participantId: socket.userId,
-            producerId
+            producerId,
+            isScreen: !!result?.isScreen
           });
         } catch (error) {
           console.error('❌ Error closing producer:', error);
@@ -296,8 +300,9 @@ class SFUServer {
               roomId: producer.roomId,
               producerId: producer.id,  // Use producerId (not producer_id)
               participantId: producer.user_id,  // Use participantId (not user_id)
-        kind: producer.kind,
-        paused: !!producer.paused
+              kind: producer.kind,
+              paused: !!producer.paused,
+              isScreen: producer?.appData?.type === 'screen'
             });
           });
           

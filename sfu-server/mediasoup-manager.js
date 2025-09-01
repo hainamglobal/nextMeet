@@ -286,7 +286,7 @@ class MediasoupManager {
     }
   }
 
-  async createProducer(transportId, rtpParameters, kind) {
+  async createProducer(transportId, rtpParameters, kind, appData = {}) {
     const transportData = this.transports.get(transportId);
     if (!transportData) {
       throw new Error(`Transport ${transportId} not found`);
@@ -299,13 +299,14 @@ class MediasoupManager {
     const producer = await transport.produce({
       kind,
       rtpParameters,
+      appData
     });
 
     const room = this.rooms.get(roomId);
     const peer = room.peers.get(peerId);
     
     peer.producers.set(producer.id, producer);
-    this.producers.set(producer.id, { roomId, peerId, producer });
+  this.producers.set(producer.id, { roomId, peerId, producer });
 
     // Add producer event listeners for debugging
     // producer.on('score', (score) => {
@@ -364,6 +365,7 @@ class MediasoupManager {
   return {
       id: producer.id,
       kind: producer.kind,
+      appData: producer.appData || appData || {}
     };
   }
 
@@ -483,19 +485,21 @@ class MediasoupManager {
 
   async closeProducer(producerId) {
     const producerData = this.producers.get(producerId);
-    if (!producerData) return;
+    if (!producerData) return { isScreen: false };
 
     const { roomId, peerId, producer } = producerData;
-    
-    producer.close();
+    const isScreen = producer?.appData?.type === 'screen';
+
+    try { producer.close(); } catch (_) {}
     
     // Clean up
     const room = this.rooms.get(roomId);
-    const peer = room.peers.get(peerId);
-    peer.producers.delete(producerId);
+    const peer = room?.peers?.get(peerId);
+    if (peer) peer.producers.delete(producerId);
     this.producers.delete(producerId);
 
-    console.log(`✅ Producer closed: ${producerId}`);
+    console.log(`✅ Producer closed: ${producerId}${isScreen ? ' (screen)' : ''}`);
+    return { isScreen };
   }
 
   async closeConsumer(consumerId) {
@@ -623,9 +627,10 @@ class MediasoupManager {
       peer.info[k] = v;
     };
 
-    const toggleProducers = async (kind, shouldPause) => {
+    const toggleProducers = async (kind, shouldPause, { excludeScreens = false } = {}) => {
       for (const producer of peer.producers.values()) {
         if (producer.kind !== kind) continue;
+        if (excludeScreens && producer.appData?.type === 'screen') continue;
         try {
           if (shouldPause && !producer.paused) {
             await producer.pause();
@@ -649,11 +654,12 @@ class MediasoupManager {
         break;
       case 'video_off':
         setFlag('video_enabled', false);
-        await toggleProducers('video', true);
+        // Pause only camera video, keep screen share alive
+        await toggleProducers('video', true, { excludeScreens: true });
         break;
       case 'video_on':
         setFlag('video_enabled', true);
-        await toggleProducers('video', false);
+        await toggleProducers('video', false, { excludeScreens: true });
         break;
       default:
         break;
