@@ -18,4 +18,5 @@ def assign_sae_role(user: User, method: str) -> None:
 		frappe.get_doc({"doctype": "Role", "role_name": role_name}).insert(ignore_permissions=True)
 
 	user_doc = frappe.get_doc("User", user_name)
-	user_doc.add_roles(role_name)
+	user_doc.append("roles", {"role": role_name})
+	user_doc.save(ignore_permissions=True)
