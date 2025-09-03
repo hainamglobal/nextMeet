@@ -121,6 +121,7 @@ class MediasoupManager {
         typeof peerInfo.audio_enabled === 'boolean' ? peerInfo.audio_enabled : true,
       video_enabled:
         typeof peerInfo.video_enabled === 'boolean' ? peerInfo.video_enabled : true,
+      avatar: peerInfo.avatar
     };
 
     const peer = {
@@ -607,7 +608,8 @@ class MediasoupManager {
         info: {
           ...(peer.info || {}),
           audio_enabled: audioEnabled,
-          video_enabled: videoEnabled,
+            video_enabled: videoEnabled,
+            avatar: (peer.info||{}).avatar
         },
       };
     });

@@ -43,12 +43,15 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 		import jwt
 
 		# Generate JWT token for SFU authentication
-		user_fullname = frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user
+		user_fullname, user_avatar = frappe.db.get_value(
+			"User", frappe.session.user, ["full_name", "user_image"]
+		) or (frappe.session.user, None)
 
 		auth_payload = {
 			"user_id": frappe.session.user,
 			"meeting_id": meeting_id,
 			"user_name": user_fullname,
+			"user_avatar": user_avatar,
 			"exp": int(time.time()) + 3600,  # 1 hour expiry
 			"iat": int(time.time()),
 		}
@@ -64,7 +67,7 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 			"auth_token": auth_token,
 			"user_id": frappe.session.user,
 			"meeting_id": meeting_id,
-			"user_data": {"name": user_fullname, "email": frappe.session.user},
+			"user_data": {"name": user_fullname, "email": frappe.session.user, "avatar": user_avatar},
 		}
 	except Exception as e:
 		frappe.log_error(f"Failed to get SFU connection details for meeting {meeting_id}: {e!s}")

@@ -147,7 +147,9 @@ class SFUServer {
             participantId: socket.userId,
             userData: {
               name: socket.userName,
-              userId: socket.userId
+              userId: socket.userId,
+              // Avatar is optionally present in JWT; surface it for participants
+              avatar: socket.handshake?.auth?.token ? (() => { try { return (jwt.decode(socket.handshake.auth.token)||{}).user_avatar } catch(_) { return undefined } })() : undefined
             }
           });
           console.log(`✅ User ${socket.userId} successfully joined room ${roomId}`);
