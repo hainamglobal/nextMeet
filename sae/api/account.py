@@ -17,6 +17,7 @@ def get_logged_in_user() -> dict | None:
 		"email": user_doc.email,
 		"full_name": user_doc.full_name,
 		"avatar": user_doc.user_image,
+		"roles": [role.role for role in user_doc.roles],
 	}
 
 
