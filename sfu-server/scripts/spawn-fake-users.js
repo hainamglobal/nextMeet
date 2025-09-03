@@ -64,12 +64,12 @@ const endpoint = (() => {
 
 console.log('Spawning fake users with config:', { meetingId, count, endpoint, withProducers, autoToggle, lifetime });
 
-function makeToken(userId) {
+function makeToken(userId, index) {
   const now = Math.floor(Date.now() / 1000);
   return jwt.sign({
     user_id: userId,
     meeting_id: meetingId,
-    user_name: `Fake ${userId}`,
+    user_name: `Fake User ${index}`,
     iat: now,
     exp: now + 3600
   }, secret, { algorithm: 'HS256' });
@@ -79,7 +79,7 @@ function randomDelay(min, max) { return Math.floor(Math.random() * (max - min + 
 
 async function spawnUser(index) {
   const userId = `fake.user${index}@example.com`;
-  const token = makeToken(userId);
+  const token = makeToken(userId, index);
 
   const socket = io(endpoint, {
     auth: { token },
