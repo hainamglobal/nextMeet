@@ -21,6 +21,9 @@ declare module "vue" {
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
 		LucideVideo: typeof import("~icons/lucide/video")["default"];
 		LucideVideoOff: typeof import("~icons/lucide/video-off")["default"];
+		MeetingAvatar: typeof import(
+			"./src/components/MeetingAvatar.vue",
+		)["default"];
 		RouterLink: typeof import("vue-router")["RouterLink"];
 		RouterView: typeof import("vue-router")["RouterView"];
 		SFUDashboard: typeof import("./src/components/SFUDashboard.vue")["default"];
