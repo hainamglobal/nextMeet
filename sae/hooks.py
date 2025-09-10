@@ -251,5 +251,5 @@ fixtures = [
 
 
 website_route_rules = [
-	{"from_route": "/sae/<path:app_path>", "to_route": "sae"},
+	{"from_route": "/meet/<path:app_path>", "to_route": "meet"},
 ]
