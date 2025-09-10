@@ -1,4 +1,3 @@
-# SFU (Selective Forwarding Unit) Configuration for Sae Video Conferencing
 # Copyright (c) 2025, Frappe and contributors
 # For license information, please see license.txt
 

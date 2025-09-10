@@ -1,7 +1,7 @@
 {
   "name": "sae-sfu-server",
   "version": "1.0.0",
-  "description": "SFU server for Sae video conferencing using mediasoup",
+  "description": "SFU server for Frappe Meet",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

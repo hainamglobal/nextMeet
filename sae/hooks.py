@@ -1,7 +1,7 @@
 app_name = "sae"
-app_title = "Sae"
+app_title = "Frappe Meet"
 app_publisher = "Frappe"
-app_description = "Video conferencing app"
+app_description = "Video conferencing app built on Frappe Framework and Mediasoup"
 app_email = "suhail@frappe.io"
 app_license = "agpl-3.0"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Sae SFU Server Setup and Start Script
+# Frappe Meet SFU Server Setup and Start Script
 
 set -e
 
@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🚀 Sae SFU Server Setup${NC}"
+echo -e "${BLUE}🚀 Frappe Meet SFU Server Setup${NC}"
 echo "================================"
 
 # Check if Node.js is installed

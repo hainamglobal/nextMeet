@@ -12,21 +12,15 @@ declare module "vue" {
 			"./src/components/JoinMeetingForm.vue",
 		)["default"];
 		LucideAlertCircle: typeof import("~icons/lucide/alert-circle")["default"];
+		LucideCopy: typeof import("~icons/lucide/copy")["default"];
 		LucideMic: typeof import("~icons/lucide/mic")["default"];
 		LucideMicOff: typeof import("~icons/lucide/mic-off")["default"];
-		LucideMonitor: typeof import("~icons/lucide/monitor")["default"];
-		LucideMonitorOff: typeof import("~icons/lucide/monitor-off")["default"];
 		LucideMonitorPause: typeof import("~icons/lucide/monitor-pause")["default"];
 		LucideMonitorUp: typeof import("~icons/lucide/monitor-up")["default"];
 		LucidePhoneOff: typeof import("~icons/lucide/phone-off")["default"];
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
-		LucideScreenShare: typeof import("~icons/lucide/screen-share")["default"];
-		LucideScreenShareOff: typeof import(
-			"~icons/lucide/screen-share-off",
-		)["default"];
 		LucideVideo: typeof import("~icons/lucide/video")["default"];
 		LucideVideoOff: typeof import("~icons/lucide/video-off")["default"];
-		LucideX: typeof import("~icons/lucide/x")["default"];
 		RouterLink: typeof import("vue-router")["RouterLink"];
 		RouterView: typeof import("vue-router")["RouterView"];
 		SFUDashboard: typeof import("./src/components/SFUDashboard.vue")["default"];

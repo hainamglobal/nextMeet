@@ -43,9 +43,9 @@ class SFUServer {
   }
 
   setupRoutes() {
-    this.app.get('/', (req, res) => {
+  this.app.get('/', (req, res) => {
       res.json({
-        message: 'Sae SFU Server is running',
+    message: 'Frappe Meet SFU Server is running',
         version: '1.0.0',
         timestamp: new Date().toISOString(),
         rooms: this.mediasoup.getAllRoomsStats()
