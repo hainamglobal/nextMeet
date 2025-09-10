@@ -218,6 +218,18 @@ class SFUServer {
           );
 
           const isScreen = (producer.appData && producer.appData.type === 'screen') || appData.type === 'screen';
+          // Ensure peer info reflects this new producer's active state immediately
+          try {
+            const room = this.mediasoup.rooms.get(socket.meetingId);
+            const peer = room?.peers.get(socket.userId);
+            if (peer) {
+              peer.info = peer.info || {};
+              if (kind === 'audio') peer.info.audio_enabled = !producer.paused;
+              if (kind === 'video' && !isScreen) peer.info.video_enabled = !producer.paused;
+            }
+          } catch (e) {
+            console.warn('⚠️ Unable to set peer info flags for new producer', e.message);
+          }
           
           if (callback) callback({ success: true, ...producer, isScreen });
           
@@ -228,7 +240,7 @@ class SFUServer {
             participantId: socket.userId,  // Use participantId for consistency
             producerId: producer.id,       // Use producerId for consistency
             kind: producer.kind,
-            paused: false,
+            paused: !!producer.paused,
             isScreen: isScreen
           });
         } catch (error) {
