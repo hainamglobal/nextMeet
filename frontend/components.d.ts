@@ -24,6 +24,9 @@ declare module "vue" {
 		MeetingAvatar: typeof import(
 			"./src/components/MeetingAvatar.vue",
 		)["default"];
+		MeetingPreview: typeof import(
+			"./src/components/MeetingPreview.vue",
+		)["default"];
 		RouterLink: typeof import("vue-router")["RouterLink"];
 		RouterView: typeof import("vue-router")["RouterView"];
 		SFUDashboard: typeof import("./src/components/SFUDashboard.vue")["default"];
