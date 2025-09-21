@@ -19,12 +19,12 @@ class SaeMeeting(Document):
 		"""Initialize meeting room"""
 		if not hasattr(self, "members") or not self.members:
 			self.members = json.dumps([])
+		if not hasattr(self, "waiting_room") or not self.waiting_room:
+			self.waiting_room = json.dumps([])
 		if not hasattr(self, "is_active"):
 			self.is_active = 1
 
 	def after_insert(self):
-		"""Notify room creation and auto-join creator"""
-		self.notify_room_created()
 		self.join(frappe.session.user)
 
 	def join(self, user=None):
@@ -37,6 +37,11 @@ class SaeMeeting(Document):
 		if not user:
 			user = frappe.session.user
 
+		if self.meeting_type == "restricted" and user != self.owner:
+			if not self.is_user_approved(user):
+				self.add_to_waiting_room(user)
+				return {"status": "waiting_for_approval", "message": "Waiting for host approval"}
+
 		# Get current members list
 		members = self.get_members()
 
@@ -44,16 +49,16 @@ class SaeMeeting(Document):
 		if user not in members:
 			members.append(user)
 			self.update_members(members)
-
-			# Notify all members about new user joining
-			self.notify_member_joined(user)
+			self.remove_from_waiting_room(user)
 
 		# Send join confirmation to the user
 		frappe.publish_realtime(
-			"sae_meeting_joined",
+			"meeting_joined",
 			{"meeting": self.name, "user": user, "members": members, "member_count": len(members)},
 			user=user,
 		)
+
+		return {"status": "joined", "message": "Successfully joined the meeting"}
 
 	def leave(self, user=None):
 		"""
@@ -65,22 +70,15 @@ class SaeMeeting(Document):
 		if not user:
 			user = frappe.session.user
 
-		# Get current members list
 		members = self.get_members()
 
-		# Remove user if in room
 		if user in members:
 			members.remove(user)
 			self.update_members(members)
 
-			# Notify remaining members about user leaving
-			self.notify_member_left(user)
-
-			# If no members left, mark room as inactive
 			if not members:
 				self.is_active = 0
 				self.save(ignore_permissions=True)
-				self.notify_room_closed()
 
 	def get_members(self):
 		"""Get list of current members"""
@@ -110,8 +108,6 @@ class SaeMeeting(Document):
 		# if not frappe.has_permission("Sae Meeting", "read", self):
 		# 	return False
 
-		# Additional checks can be added here (e.g., meeting capacity, invitation status, etc.)
-
 		return True
 
 	def update_members(self, members_list):
@@ -119,63 +115,114 @@ class SaeMeeting(Document):
 		self.members = json.dumps(members_list)
 		self.save(ignore_permissions=True)
 
-	def notify_room_created(self):
-		"""Notify that room was created"""
-		frappe.publish_realtime(
-			"sae_meeting_created",
-			{"meeting": self.name, "creator": frappe.session.user, "created_at": self.creation},
-			doctype=self.doctype,
-			docname=self.name,
-		)
+	def get_waiting_room(self):
+		"""Get list of users waiting for approval"""
+		try:
+			return json.loads(self.waiting_room or "[]")
+		except (json.JSONDecodeError, AttributeError):
+			return []
 
-	def notify_member_joined(self, user):
-		"""Notify all members that someone joined"""
+	def add_to_waiting_room(self, user):
+		"""Add user to waiting room"""
+		if self.is_user_approved(user):
+			return
+
+		waiting_users = self.get_waiting_room()
+		if user not in waiting_users:
+			waiting_users.append(user)
+			self.waiting_room = json.dumps(waiting_users)
+			self.save(ignore_permissions=True)
+
+			user_doc = frappe.db.get_value("User", user, ["full_name", "user_image"], as_dict=True)
+
+			frappe.publish_realtime(
+				"meeting_join_request",
+				doctype=self.doctype,
+				docname=self.name,
+				message={
+					"meeting": self.name,
+					"user": user,
+					"user_name": user_doc.full_name,
+					"user_image": user_doc.user_image,
+					"waiting_count": len(waiting_users),
+				},
+			)
+
+	def remove_from_waiting_room(self, user):
+		"""Remove user from waiting room"""
+		waiting_users = self.get_waiting_room()
+		if user in waiting_users:
+			waiting_users.remove(user)
+			self.waiting_room = json.dumps(waiting_users)
+			self.save(ignore_permissions=True)
+
+	def approve_user(self, user):
+		"""Approve a user from waiting room to join the meeting"""
+		if frappe.session.user != self.owner:
+			frappe.throw("Only the meeting creator can approve join requests")
+
+		waiting_users = self.get_waiting_room()
+		if user not in waiting_users:
+			frappe.throw("User is not in waiting room")
+
 		members = self.get_members()
+
+		if user not in members:
+			members.append(user)
+			self.update_members(members)
+
+		self.remove_from_waiting_room(user)
+
 		frappe.publish_realtime(
-			"sae_meeting_member_joined",
-			{"meeting": self.name, "user": user, "members": members, "member_count": len(members)},
+			"meeting_join_approved",
 			doctype=self.doctype,
 			docname=self.name,
+			message={"meeting": self.name, "user": user, "approved_by": frappe.session.user},
 		)
 
-	def notify_member_left(self, user):
-		"""Notify remaining members that someone left"""
+		updated_waiting_users = self.get_waiting_room()
+		frappe.publish_realtime(
+			"meeting_waiting_room_updated",
+			doctype=self.doctype,
+			docname=self.name,
+			message={"meeting": self.name, "waiting_count": len(updated_waiting_users)},
+		)
+
+		return {"status": "joined", "message": "Successfully joined the meeting"}
+
+	def reject_user(self, user, rejected_by=None):
+		"""Reject a user from waiting room"""
+		if not rejected_by:
+			rejected_by = frappe.session.user
+
+		if rejected_by != self.owner:
+			frappe.throw("Only the meeting creator can reject join requests")
+
+		waiting_users = self.get_waiting_room()
+		if user not in waiting_users:
+			frappe.throw("User is not in waiting room")
+
+		self.remove_from_waiting_room(user)
+
+		frappe.publish_realtime(
+			"meeting_join_rejected",
+			doctype=self.doctype,
+			docname=self.name,
+			message={"meeting": self.name, "user": user, "rejected_by": rejected_by},
+		)
+
+		updated_waiting_users = self.get_waiting_room()
+		frappe.publish_realtime(
+			"meeting_waiting_room_updated",
+			doctype=self.doctype,
+			docname=self.name,
+			message={"meeting": self.name, "waiting_count": len(updated_waiting_users)},
+		)
+
+	def is_user_approved(self, user):
+		"""Check if user is already approved (in members list)"""
 		members = self.get_members()
-		frappe.publish_realtime(
-			"sae_meeting_member_left",
-			{"meeting": self.name, "user": user, "members": members, "member_count": len(members)},
-			doctype=self.doctype,
-			docname=self.name,
-		)
-
-	def notify_room_closed(self):
-		"""Notify that room was closed due to no members"""
-		frappe.publish_realtime(
-			"sae_meeting_closed",
-			{"meeting": self.name, "closed_at": frappe.utils.now()},
-			doctype=self.doctype,
-			docname=self.name,
-		)
-
-	def send_signal(self, signal_data, target_user=None):
-		"""
-		Send signaling data between members
-
-		Args:
-			signal_data: The signaling data to send
-			target_user: Specific user to send to (if None, broadcasts to all)
-		"""
-		event_data = {"meeting": self.name, "from_user": frappe.session.user, "signal": signal_data}
-
-		if target_user:
-			# Send to specific user
-			frappe.publish_realtime("sae_meeting_signal", event_data, user=target_user)
-		else:
-			# Broadcast to all members except sender
-			members = self.get_members()
-			for member in members:
-				if member != frappe.session.user:
-					frappe.publish_realtime("sae_meeting_signal", event_data, user=member)
+		return user in members
 
 
 def generate(segment_length=4, num_segments=3, separator="-"):

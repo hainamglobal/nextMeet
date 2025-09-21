@@ -7,7 +7,9 @@
  "field_order": [
   "section_break_voms",
   "is_active",
+  "meeting_type",
   "members",
+  "waiting_room",
   "column_break_1",
   "created_by",
   "started_at"
@@ -24,9 +26,23 @@
    "label": "Is Active"
   },
   {
+   "default": "open",
+   "fieldname": "meeting_type",
+   "fieldtype": "Select",
+   "label": "Meeting Type",
+   "options": "open\nrestricted",
+   "reqd": 1
+  },
+  {
    "fieldname": "members",
    "fieldtype": "Long Text",
    "label": "Members",
+   "read_only": 1
+  },
+  {
+   "fieldname": "waiting_room",
+   "fieldtype": "Long Text",
+   "label": "Waiting Room",
    "read_only": 1
   },
   {
@@ -50,7 +66,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-13 12:54:30.383771",
+ "modified": "2025-09-29 12:54:30.383771",
  "modified_by": "suhail@frappe.io",
  "module": "Sae",
  "name": "Sae Meeting",

@@ -8,19 +8,27 @@ export {};
 /* prettier-ignore */
 declare module "vue" {
 	export interface GlobalComponents {
-		JoinMeetingForm: typeof import(
-			"./src/components/JoinMeetingForm.vue",
+		JoinRequestNotifications: typeof import(
+			"./src/components/JoinRequestNotifications.vue",
 		)["default"];
 		LucideAlertCircle: typeof import("~icons/lucide/alert-circle")["default"];
+		LucideArrowLeft: typeof import("~icons/lucide/arrow-left")["default"];
+		LucideCheck: typeof import("~icons/lucide/check")["default"];
+		LucideClock: typeof import("~icons/lucide/clock")["default"];
 		LucideCopy: typeof import("~icons/lucide/copy")["default"];
+		LucideInfo: typeof import("~icons/lucide/info")["default"];
 		LucideMic: typeof import("~icons/lucide/mic")["default"];
 		LucideMicOff: typeof import("~icons/lucide/mic-off")["default"];
 		LucideMonitorPause: typeof import("~icons/lucide/monitor-pause")["default"];
 		LucideMonitorUp: typeof import("~icons/lucide/monitor-up")["default"];
 		LucidePhoneOff: typeof import("~icons/lucide/phone-off")["default"];
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
+		LucideRefreshCw: typeof import("~icons/lucide/refresh-cw")["default"];
+		LucideUsers: typeof import("~icons/lucide/users")["default"];
 		LucideVideo: typeof import("~icons/lucide/video")["default"];
 		LucideVideoOff: typeof import("~icons/lucide/video-off")["default"];
+		LucideX: typeof import("~icons/lucide/x")["default"];
+		LucideXCircle: typeof import("~icons/lucide/x-circle")["default"];
 		MeetingAvatar: typeof import(
 			"./src/components/MeetingAvatar.vue",
 		)["default"];

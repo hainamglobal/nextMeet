@@ -9,10 +9,12 @@ from frappe.rate_limiter import rate_limit
 
 @frappe.whitelist()
 @rate_limit(limit=10, seconds=60 * 60)
-def create() -> str:
+def create(meeting_type: str = "open") -> str:
+	"""Create a new meeting with specified type"""
 	meeting = frappe.get_doc(
 		{
 			"doctype": "Sae Meeting",
+			"meeting_type": meeting_type,
 		}
 	).insert()
 
@@ -77,15 +79,26 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 @frappe.whitelist()
 def join_meeting(meeting_id: str) -> dict:
 	try:
-		# Get meeting document
 		meeting = frappe.get_doc("Sae Meeting", meeting_id)
 
-		# Join the meeting in Frappe
 		if meeting.can_join(frappe.session.user):
-			return {
-				"success": True,
-				"meeting_id": meeting_id,
-			}
+			result = meeting.join(frappe.session.user)
+
+			if isinstance(result, dict):
+				if result.get("status") == "waiting_for_approval":
+					return {
+						"success": True,
+						"status": "waiting_for_approval",
+						"meeting_id": meeting_id,
+						"message": result.get("message", "Waiting for host approval"),
+					}
+				elif result.get("status") == "joined":
+					return {
+						"success": True,
+						"status": "joined",
+						"meeting_id": meeting_id,
+						"message": result.get("message", "Successfully joined meeting"),
+					}
 		else:
 			return {"success": False, "error": "Access denied"}
 	except Exception as e:
@@ -96,11 +109,8 @@ def join_meeting(meeting_id: str) -> dict:
 @frappe.whitelist()
 def leave_meeting(meeting_id: str) -> dict:
 	try:
-		# Get meeting document
-		# meeting = frappe.get_doc("Sae Meeting", meeting_id)
-
-		# Leave the meeting in Frappe
-		# meeting.leave(frappe.session.user)
+		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+		meeting.leave(frappe.session.user)
 
 		return {"success": True, "meeting_id": meeting_id, "user_id": frappe.session.user}
 	except Exception as e:
@@ -138,4 +148,89 @@ def cleanup_user_meetings(user_id: str | None = None) -> dict:
 		return {"success": True, "cleaned_meetings": cleaned_meetings, "user_id": user_id}
 	except Exception as e:
 		frappe.log_error(f"Error in user meeting cleanup: {e!s}")
+		return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def approve_join_request(meeting_id: str, user_id: str) -> dict:
+	"""Approve a user's join request from waiting room"""
+	try:
+		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+		meeting.approve_user(user_id)
+
+		return {
+			"success": True,
+			"meeting_id": meeting_id,
+			"user_id": user_id,
+			"message": "User approved successfully",
+		}
+	except Exception as e:
+		frappe.log_error(f"Failed to approve join request for meeting {meeting_id}: {e!s}")
+		return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def reject_join_request(meeting_id: str, user_id: str) -> dict:
+	"""Reject a user's join request from waiting room"""
+	try:
+		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+		meeting.reject_user(user_id)
+
+		return {
+			"success": True,
+			"meeting_id": meeting_id,
+			"user_id": user_id,
+			"message": "User rejected successfully",
+		}
+	except Exception as e:
+		frappe.log_error(f"Failed to reject join request for meeting {meeting_id}: {e!s}")
+		return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def get_waiting_room(meeting_id: str) -> dict:
+	"""Get list of users waiting for approval"""
+	try:
+		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+
+		if frappe.session.user != meeting.owner:
+			return {"success": False, "error": "Access denied"}
+
+		waiting_users = meeting.get_waiting_room()
+
+		user_details = []
+		for user in waiting_users:
+			user_info = frappe.get_value("User", user, ["full_name", "user_image"], as_dict=True)
+			user_details.append(
+				{
+					"user_id": user,
+					"full_name": user_info.get("full_name") if user_info else user,
+					"user_image": user_info.get("user_image") if user_info else None,
+				}
+			)
+
+		return {"success": True, "meeting_id": meeting_id, "waiting_users": user_details}
+	except Exception as e:
+		frappe.log_error(f"Failed to get waiting room for meeting {meeting_id}: {e!s}")
+		return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def get_meeting_info(meeting_id: str) -> dict:
+	"""Get meeting information including type and permissions"""
+	try:
+		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+
+		return {
+			"success": True,
+			"meeting_id": meeting_id,
+			"meeting_type": meeting.meeting_type,
+			"owner": meeting.owner,
+			"is_creator": frappe.session.user == meeting.owner,
+			"is_active": meeting.is_active,
+			"member_count": len(meeting.get_members()),
+			"waiting_count": len(meeting.get_waiting_room()) if meeting.meeting_type == "restricted" else 0,
+		}
+	except Exception as e:
+		frappe.log_error(f"Failed to get meeting info for {meeting_id}: {e!s}")
 		return {"success": False, "error": str(e)}

@@ -11,7 +11,7 @@ export default defineConfig({
 			jinjaBootData: true,
 			lucideIcons: true,
 			buildConfig: {
-				indexHtmlPath: "../sae/www/sae.html",
+				indexHtmlPath: "../sae/www/meet.html",
 				emptyOutDir: true,
 				sourcemap: true,
 			},
