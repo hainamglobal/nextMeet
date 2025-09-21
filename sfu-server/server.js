@@ -406,6 +406,31 @@ class SFUServer {
         }
       });
 
+      socket.on('chat:send', (data = {}) => {
+        try {
+          const roomId = socket.meetingId;
+          const text = (typeof data.message === 'string' ? data.message : '')
+            .slice(0, 2000);
+            
+          if (!roomId || !text.trim()) {
+            return;
+          }
+
+          const payload = {
+            roomId,
+            message: text,
+            fromUser: socket.userId,
+            fromName: socket.userName,
+            timestamp: new Date().toISOString(),
+          };
+          if (data.clientId) payload.clientId = String(data.clientId);
+
+          socket.to(roomId).emit('chat:message', payload);
+        } catch (e) {
+          console.warn('⚠️ chat:send handling failed:', e?.message || e);
+        }
+      });
+
       socket.on('connect', async () => {
         console.log(`🔌 Connected: ${socket.id} (User: ${socket.userId})`);
       });

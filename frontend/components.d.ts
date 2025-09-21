@@ -8,6 +8,13 @@ export {};
 /* prettier-ignore */
 declare module "vue" {
 	export interface GlobalComponents {
+		ChatNotification: typeof import(
+			"./src/components/ChatNotification.vue",
+		)["default"];
+		ChatNotificationQueue: typeof import(
+			"./src/components/ChatNotificationQueue.vue",
+		)["default"];
+		ChatPanel: typeof import("./src/components/ChatPanel.vue")["default"];
 		FloatingControls: typeof import(
 			"./src/components/FloatingControls.vue",
 		)["default"];
@@ -20,6 +27,18 @@ declare module "vue" {
 		LucideClock: typeof import("~icons/lucide/clock")["default"];
 		LucideCopy: typeof import("~icons/lucide/copy")["default"];
 		LucideInfo: typeof import("~icons/lucide/info")["default"];
+		LucideMessageSquare: typeof import(
+			"~icons/lucide/message-square",
+		)["default"];
+		LucideMessageSquareDot: typeof import(
+			"~icons/lucide/message-square-dot",
+		)["default"];
+		LucideMessageSquareOff: typeof import(
+			"~icons/lucide/message-square-off",
+		)["default"];
+		LucideMessagesSquare: typeof import(
+			"~icons/lucide/messages-square",
+		)["default"];
 		LucideMic: typeof import("~icons/lucide/mic")["default"];
 		LucideMicOff: typeof import("~icons/lucide/mic-off")["default"];
 		LucideMonitorPause: typeof import("~icons/lucide/monitor-pause")["default"];
