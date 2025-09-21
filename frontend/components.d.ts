@@ -15,6 +15,9 @@ declare module "vue" {
 			"./src/components/ChatNotificationQueue.vue",
 		)["default"];
 		ChatPanel: typeof import("./src/components/ChatPanel.vue")["default"];
+		ClickToCopyField: typeof import(
+			"./src/components/ClickToCopyField.vue",
+		)["default"];
 		FloatingControls: typeof import(
 			"./src/components/FloatingControls.vue",
 		)["default"];
@@ -43,6 +46,9 @@ declare module "vue" {
 		LucideMicOff: typeof import("~icons/lucide/mic-off")["default"];
 		LucideMonitorPause: typeof import("~icons/lucide/monitor-pause")["default"];
 		LucideMonitorUp: typeof import("~icons/lucide/monitor-up")["default"];
+		LucideMoreHorizontal: typeof import(
+			"~icons/lucide/more-horizontal",
+		)["default"];
 		LucidePhoneOff: typeof import("~icons/lucide/phone-off")["default"];
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
 		LucideRefreshCw: typeof import("~icons/lucide/refresh-cw")["default"];
@@ -54,11 +60,11 @@ declare module "vue" {
 		MeetingAvatar: typeof import(
 			"./src/components/MeetingAvatar.vue",
 		)["default"];
+		MeetingInfoDialog: typeof import(
+			"./src/components/MeetingInfoDialog.vue",
+		)["default"];
 		MeetingPreview: typeof import(
 			"./src/components/MeetingPreview.vue",
-		)["default"];
-		MeetingTopBar: typeof import(
-			"./src/components/MeetingTopBar.vue",
 		)["default"];
 		RouterLink: typeof import("vue-router")["RouterLink"];
 		RouterView: typeof import("vue-router")["RouterView"];
