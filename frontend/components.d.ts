@@ -8,6 +8,9 @@ export {};
 /* prettier-ignore */
 declare module "vue" {
 	export interface GlobalComponents {
+		FloatingControls: typeof import(
+			"./src/components/FloatingControls.vue",
+		)["default"];
 		JoinRequestNotifications: typeof import(
 			"./src/components/JoinRequestNotifications.vue",
 		)["default"];
@@ -34,6 +37,9 @@ declare module "vue" {
 		)["default"];
 		MeetingPreview: typeof import(
 			"./src/components/MeetingPreview.vue",
+		)["default"];
+		MeetingTopBar: typeof import(
+			"./src/components/MeetingTopBar.vue",
 		)["default"];
 		RouterLink: typeof import("vue-router")["RouterLink"];
 		RouterView: typeof import("vue-router")["RouterView"];
