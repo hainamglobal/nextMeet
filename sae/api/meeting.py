@@ -2,8 +2,10 @@
 # For license information, please see license.txt
 
 import json
+import time
 
 import frappe
+import jwt
 from frappe.rate_limiter import rate_limit
 
 
@@ -27,24 +29,15 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 	Get SFU connection details for direct client-to-SFU communication
 	"""
 	try:
-		# Validate meeting access
 		meeting = frappe.get_doc("Sae Meeting", meeting_id)
 
-		# Check if user can join this meeting
 		if not meeting.can_join(frappe.session.user):
 			return {"success": False, "error": "Access denied"}
 
-		# Get SFU configuration
 		from sae.utils.sfu_config import get_sfu_config
 
 		sfu_config = get_sfu_config()
 
-		# Create auth token for SFU access
-		import time
-
-		import jwt
-
-		# Generate JWT token for SFU authentication
 		user_fullname, user_avatar = frappe.db.get_value(
 			"User", frappe.session.user, ["full_name", "user_image"]
 		) or (frappe.session.user, None)
@@ -58,7 +51,6 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 			"iat": int(time.time()),
 		}
 
-		# Use SFU secret or fall back to site secret
 		secret = sfu_config.get("sfu_secret") or frappe.conf.get("secret_key", "fallback-secret")
 		auth_token = jwt.encode(auth_payload, secret, algorithm="HS256")
 
@@ -69,7 +61,12 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 			"auth_token": auth_token,
 			"user_id": frappe.session.user,
 			"meeting_id": meeting_id,
-			"user_data": {"name": user_fullname, "email": frappe.session.user, "avatar": user_avatar},
+			"user_data": {
+				"name": user_fullname,
+				"email": frappe.session.user,
+				"avatar": user_avatar,
+			},
+			"expires_in": 3600,
 		}
 	except Exception as e:
 		frappe.log_error(f"Failed to get SFU connection details for meeting {meeting_id}: {e!s}")
@@ -233,4 +230,48 @@ def get_meeting_info(meeting_id: str) -> dict:
 		}
 	except Exception as e:
 		frappe.log_error(f"Failed to get meeting info for {meeting_id}: {e!s}")
+		return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def refresh_sfu_token(meeting_id: str) -> dict:
+	"""
+	Refresh SFU authentication token for ongoing meetings
+	"""
+	try:
+		meeting = frappe.get_doc("Sae Meeting", meeting_id)
+
+		if not meeting.is_active:
+			return {"success": False, "error": "Meeting has ended"}
+
+		if frappe.session.user not in meeting.get_members():
+			return {"success": False, "error": "Not a meeting member"}
+
+		from sae.utils.sfu_config import get_sfu_config
+
+		sfu_config = get_sfu_config()
+
+		user_fullname, user_avatar = frappe.db.get_value(
+			"User", frappe.session.user, ["full_name", "user_image"]
+		) or (frappe.session.user, None)
+
+		auth_payload = {
+			"user_id": frappe.session.user,
+			"meeting_id": meeting_id,
+			"user_name": user_fullname,
+			"user_avatar": user_avatar,
+			"exp": int(time.time()) + 3600,  # 1 hour expiry
+			"iat": int(time.time()),
+		}
+
+		secret = sfu_config.get("sfu_secret") or frappe.conf.get("secret_key", "fallback-secret")
+		auth_token = jwt.encode(auth_payload, secret, algorithm="HS256")
+
+		return {
+			"success": True,
+			"auth_token": auth_token,
+			"expires_in": 3600,
+		}
+	except Exception as e:
+		frappe.log_error(f"Failed to refresh SFU token for meeting {meeting_id}: {e!s}")
 		return {"success": False, "error": str(e)}
