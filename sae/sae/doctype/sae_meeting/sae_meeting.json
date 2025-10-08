@@ -29,6 +29,7 @@
    "default": "open",
    "fieldname": "meeting_type",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Meeting Type",
    "options": "open\nrestricted",
    "reqd": 1
@@ -36,12 +37,14 @@
   {
    "fieldname": "members",
    "fieldtype": "Long Text",
+   "hidden": 1,
    "label": "Members",
    "read_only": 1
   },
   {
    "fieldname": "waiting_room",
    "fieldtype": "Long Text",
+   "hidden": 1,
    "label": "Waiting Room",
    "read_only": 1
   },
@@ -66,8 +69,8 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-09-29 12:54:30.383771",
- "modified_by": "suhail@frappe.io",
+ "modified": "2025-10-08 20:24:22.728874",
+ "modified_by": "Administrator",
  "module": "Sae",
  "name": "Sae Meeting",
  "owner": "Administrator",
