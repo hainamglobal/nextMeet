@@ -24,6 +24,7 @@ declare module "vue" {
 		DeviceSettingsDialog: typeof import(
 			"./src/components/DeviceSettingsDialog.vue",
 		)["default"];
+		EmojiPicker: typeof import("./src/components/EmojiPicker.vue")["default"];
 		FloatingControls: typeof import(
 			"./src/components/FloatingControls.vue",
 		)["default"];
