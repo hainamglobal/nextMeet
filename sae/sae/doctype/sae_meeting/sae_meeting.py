@@ -10,6 +10,21 @@ from frappe.model.document import Document
 
 
 class SaeMeeting(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		is_active: DF.Check
+		meeting_type: DF.Literal["open", "restricted"]
+		members: DF.LongText | None
+		started_at: DF.Datetime | None
+		waiting_room: DF.LongText | None
+	# end: auto-generated types
+
 	def autoname(self):
 		"""Set the name of the meeting"""
 		if not self.name:
