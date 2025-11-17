@@ -23,7 +23,7 @@ def get_logged_in_user() -> dict | None:
 
 @frappe.whitelist(allow_guest=True)
 @redis_cache(ttl=10 * 60)
-def oauth_providers():
+def oauth_providers(redirect_url: str = "") -> list[dict]:
 	from frappe.utils.html_utils import get_icon_html
 	from frappe.utils.oauth import get_oauth2_authorize_url, get_oauth_keys
 	from frappe.utils.password import get_decrypted_password
@@ -53,7 +53,7 @@ def oauth_providers():
 				{
 					"name": provider.name,
 					"provider_name": provider.provider_name,
-					"auth_url": get_oauth2_authorize_url(provider.name, "/meet"),
+					"auth_url": get_oauth2_authorize_url(provider.name, f"/meet{redirect_url}"),
 					"icon": icon,
 				}
 			)
