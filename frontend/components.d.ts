@@ -43,16 +43,16 @@ declare module "vue" {
 			"~icons/lucide/alert-triangle",
 		)["default"];
 		LucideArrowLeft: typeof import("~icons/lucide/arrow-left")["default"];
-		LucideCamera: typeof import("~icons/lucide/camera")["default"];
 		LucideCheck: typeof import("~icons/lucide/check")["default"];
-		LucideChevronDown: typeof import("~icons/lucide/chevron-down")["default"];
 		LucideCircleUserRound: typeof import(
 			"~icons/lucide/circle-user-round",
 		)["default"];
 		LucideClock: typeof import("~icons/lucide/clock")["default"];
-		LucideCode: typeof import("~icons/lucide/code")["default"];
 		LucideInfo: typeof import("~icons/lucide/info")["default"];
 		LucideLoader: typeof import("~icons/lucide/loader")["default"];
+		LucideMessageCircle: typeof import(
+			"~icons/lucide/message-circle",
+		)["default"];
 		LucideMessageSquare: typeof import(
 			"~icons/lucide/message-square",
 		)["default"];
@@ -70,10 +70,15 @@ declare module "vue" {
 			"~icons/lucide/more-horizontal",
 		)["default"];
 		LucidePhoneOff: typeof import("~icons/lucide/phone-off")["default"];
+		LucidePlay: typeof import("~icons/lucide/play")["default"];
+		LucidePlayCircle: typeof import("~icons/lucide/play-circle")["default"];
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
 		LucideRefreshCw: typeof import("~icons/lucide/refresh-cw")["default"];
 		LucideSettings: typeof import("~icons/lucide/settings")["default"];
 		LucideSmile: typeof import("~icons/lucide/smile")["default"];
+		LucideUserCheck: typeof import("~icons/lucide/user-check")["default"];
+		LucideUserMinus: typeof import("~icons/lucide/user-minus")["default"];
+		LucideUserPlus: typeof import("~icons/lucide/user-plus")["default"];
 		LucideUsers: typeof import("~icons/lucide/users")["default"];
 		LucideVideo: typeof import("~icons/lucide/video")["default"];
 		LucideVideoOff: typeof import("~icons/lucide/video-off")["default"];
