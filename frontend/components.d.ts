@@ -38,6 +38,9 @@ declare module "vue" {
 		JoinRequestNotifications: typeof import(
 			"./src/components/JoinRequestNotifications.vue",
 		)["default"];
+		KickParticipantDialog: typeof import(
+			"./src/components/KickParticipantDialog.vue",
+		)["default"];
 		LucideAlertCircle: typeof import("~icons/lucide/alert-circle")["default"];
 		LucideAlertTriangle: typeof import(
 			"~icons/lucide/alert-triangle",
@@ -66,17 +69,20 @@ declare module "vue" {
 		LucideMoreHorizontal: typeof import(
 			"~icons/lucide/more-horizontal",
 		)["default"];
+		LucideMoreVertical: typeof import("~icons/lucide/more-vertical")["default"];
 		LucidePhoneOff: typeof import("~icons/lucide/phone-off")["default"];
 		LucidePlay: typeof import("~icons/lucide/play")["default"];
 		LucidePlayCircle: typeof import("~icons/lucide/play-circle")["default"];
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
 		LucideRefreshCw: typeof import("~icons/lucide/refresh-cw")["default"];
+		LucideSearch: typeof import("~icons/lucide/search")["default"];
 		LucideSettings: typeof import("~icons/lucide/settings")["default"];
 		LucideSmile: typeof import("~icons/lucide/smile")["default"];
 		LucideUserCheck: typeof import("~icons/lucide/user-check")["default"];
 		LucideUserMinus: typeof import("~icons/lucide/user-minus")["default"];
 		LucideUserPlus: typeof import("~icons/lucide/user-plus")["default"];
 		LucideUsers: typeof import("~icons/lucide/users")["default"];
+		LucideUserX: typeof import("~icons/lucide/user-x")["default"];
 		LucideVideo: typeof import("~icons/lucide/video")["default"];
 		LucideVideoOff: typeof import("~icons/lucide/video-off")["default"];
 		LucideWifiOff: typeof import("~icons/lucide/wifi-off")["default"];
@@ -94,6 +100,10 @@ declare module "vue" {
 		NamePill: typeof import("./src/components/NamePill.vue")["default"];
 		ParticipantTile: typeof import(
 			"./src/components/ParticipantTile.vue",
+		)["default"];
+		PeoplePanel: typeof import("./src/components/PeoplePanel.vue")["default"];
+		PeopleParticipantTile: typeof import(
+			"./src/components/PeopleParticipantTile.vue",
 		)["default"];
 		ReactionPicker: typeof import(
 			"./src/components/ReactionPicker.vue",
