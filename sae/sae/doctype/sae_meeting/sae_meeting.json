@@ -6,24 +6,16 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_voms",
-  "is_active",
   "meeting_type",
   "members",
   "waiting_room",
   "banned_users",
-  "column_break_1",
-  "started_at"
+  "column_break_1"
  ],
  "fields": [
   {
    "fieldname": "section_break_voms",
    "fieldtype": "Section Break"
-  },
-  {
-   "default": "1",
-   "fieldname": "is_active",
-   "fieldtype": "Check",
-   "label": "Is Active"
   },
   {
    "default": "open",
@@ -58,18 +50,12 @@
   {
    "fieldname": "column_break_1",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "started_at",
-   "fieldtype": "Datetime",
-   "label": "Started At",
-   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-23 10:35:59.240356",
+ "modified": "2025-11-26 10:32:58.518323",
  "modified_by": "Administrator",
  "module": "Sae",
  "name": "Sae Meeting",

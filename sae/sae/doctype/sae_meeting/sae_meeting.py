@@ -21,10 +21,8 @@ class SaeMeeting(Document):
 		from sae.sae.doctype.sae_meeting_user.sae_meeting_user import SaeMeetingUser
 
 		banned_users: DF.TableMultiSelect[SaeMeetingUser]
-		is_active: DF.Check
 		meeting_type: DF.Literal["open", "restricted"]
 		members: DF.TableMultiSelect[SaeMeetingUser]
-		started_at: DF.Datetime | None
 		waiting_room: DF.TableMultiSelect[SaeMeetingUser]
 	# end: auto-generated types
 
