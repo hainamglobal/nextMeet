@@ -101,6 +101,9 @@ declare module "vue" {
 			"./src/components/MeetingPreview.vue",
 		)["default"];
 		NamePill: typeof import("./src/components/NamePill.vue")["default"];
+		ParticipantAvatarGroup: typeof import(
+			"./src/components/ParticipantAvatarGroup.vue",
+		)["default"];
 		ParticipantTile: typeof import(
 			"./src/components/ParticipantTile.vue",
 		)["default"];
