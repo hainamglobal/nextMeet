@@ -224,27 +224,6 @@ def get_waiting_room(meeting_id: str) -> dict:
 
 
 @frappe.whitelist()
-def get_meeting_info(meeting_id: str) -> dict:
-	"""Get meeting information including type and permissions"""
-	try:
-		meeting = frappe.get_doc("Sae Meeting", meeting_id)
-
-		return {
-			"success": True,
-			"meeting_id": meeting_id,
-			"meeting_type": meeting.meeting_type,
-			"owner": meeting.owner,
-			"is_creator": frappe.session.user == meeting.owner,
-			"is_active": meeting.is_active,
-			"member_count": len(meeting.get_members()),
-			"waiting_count": len(meeting.get_waiting_room()) if meeting.meeting_type == "restricted" else 0,
-		}
-	except Exception as e:
-		frappe.log_error(f"Failed to get meeting info for {meeting_id}: {e!s}")
-		return {"success": False, "error": str(e)}
-
-
-@frappe.whitelist()
 def refresh_sfu_token(meeting_id: str) -> dict:
 	"""
 	Refresh SFU authentication token for ongoing meetings
