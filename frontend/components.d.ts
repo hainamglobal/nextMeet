@@ -54,6 +54,9 @@ declare module "vue" {
 		LucideHand: typeof import("~icons/lucide/hand")["default"];
 		LucideInfo: typeof import("~icons/lucide/info")["default"];
 		LucideLoader: typeof import("~icons/lucide/loader")["default"];
+		LucideMessageCircle: typeof import(
+			"~icons/lucide/message-circle",
+		)["default"];
 		LucideMessageSquare: typeof import(
 			"~icons/lucide/message-square",
 		)["default"];
