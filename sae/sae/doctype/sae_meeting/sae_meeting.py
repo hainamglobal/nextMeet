@@ -6,6 +6,7 @@ import random
 import string
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 
@@ -20,10 +21,10 @@ class SaeMeeting(Document):
 
 		from sae.sae.doctype.sae_meeting_user.sae_meeting_user import SaeMeetingUser
 
-		banned_users: DF.TableMultiSelect[SaeMeetingUser]
+		banned_users: DF.Table[SaeMeetingUser]
 		meeting_type: DF.Literal["open", "restricted"]
-		members: DF.TableMultiSelect[SaeMeetingUser]
-		waiting_room: DF.TableMultiSelect[SaeMeetingUser]
+		members: DF.Table[SaeMeetingUser]
+		waiting_room: DF.Table[SaeMeetingUser]
 	# end: auto-generated types
 
 	def autoname(self):
@@ -131,6 +132,13 @@ class SaeMeeting(Document):
 
 		self.save(ignore_permissions=True)
 
+	def add_guest_to_members(self, guest_id: str):
+		self.validate_guest_id(guest_id)
+		members = self.get_members()
+		if guest_id not in members:
+			self.append("members", {"user": guest_id})
+			self.save(ignore_permissions=True)
+
 	def get_waiting_room(self):
 		"""Get list of users waiting for approval"""
 		return [row.user for row in self.waiting_room] if self.waiting_room else []
@@ -145,23 +153,66 @@ class SaeMeeting(Document):
 			self.append("waiting_room", {"user": user})
 			self.save(ignore_permissions=True)
 
-		user_doc = frappe.db.get_value("User", user, ["full_name", "user_image"], as_dict=True)
+		from sae.utils.user import get_user_info
+
+		user_info = get_user_info(user)
+
+		if user_info:
+			user_name = user_info.get("full_name", user)
+			user_image = user_info.get("user_image")
+		else:
+			user_name = user
+			user_image = None
+
 		frappe.publish_realtime(
 			"meeting_join_request",
 			user=self.owner,
 			message={
 				"meeting": self.name,
 				"user": user,
-				"user_name": user_doc.full_name,
-				"user_image": user_doc.user_image,
+				"user_name": user_name,
+				"user_image": user_image,
 				"waiting_count": len(waiting_users) + 1,
 			},
 		)
 
+	def add_guest_to_waiting_room(self, guest_id: str):
+		self.validate_guest_id(guest_id)
+
+		if self.is_user_approved(guest_id):
+			return
+
+		waiting_users = self.get_waiting_room()
+		if guest_id not in waiting_users:
+			self.append("waiting_room", {"user": guest_id})
+			self.save(ignore_permissions=True)
+
+			from sae.utils.user import get_user_info
+
+			user_info = get_user_info(guest_id)
+
+			if user_info:
+				user_name = user_info.get("full_name", guest_id)
+			else:
+				user_name = guest_id
+
+			frappe.publish_realtime(
+				"meeting_join_request",
+				user=self.owner,
+				message={
+					"meeting": self.name,
+					"user": guest_id,
+					"user_name": user_name,
+					"user_image": None,
+					"waiting_count": len(waiting_users) + 1,
+				},
+			)
+
 	def remove_from_waiting_room(self, user):
 		"""Remove user from waiting room"""
 		self.waiting_room = [row for row in self.waiting_room if row.user != user]
-		self.save(ignore_permissions=True)
+
+		self.save()
 
 	def approve_user(self, user):
 		"""Approve a user from waiting room to join the meeting"""
@@ -210,6 +261,14 @@ class SaeMeeting(Document):
 
 		self.remove_from_waiting_room(user)
 
+		if not self.get("banned_users"):
+			self.banned_users = []
+
+		already_banned = any(row.user == user for row in self.banned_users)
+		if not already_banned:
+			self.append("banned_users", {"user": user})
+			self.save()
+
 		frappe.publish_realtime(
 			"meeting_join_rejected",
 			user=user,
@@ -241,6 +300,19 @@ class SaeMeeting(Document):
 		banned_user_emails = [row.user for row in self.banned_users]
 		return user in banned_user_emails
 
+	def validate_guest_id(self, guest_id: str):
+		if not guest_id or not isinstance(guest_id, str):
+			frappe.throw(_("Invalid guest ID"))
+
+		if not guest_id.startswith("guest_"):
+			frappe.throw(_("Invalid guest ID format"))
+
+		if len(guest_id) < 7:
+			frappe.throw(_("Invalid guest ID format"))
+
+		if self.is_user_banned(guest_id):
+			frappe.throw(_("Guest is banned from this meeting"))
+
 
 def generate(segment_length=4, num_segments=3, separator="-"):
 	# Define the character set: only lowercase letters
@@ -248,8 +320,8 @@ def generate(segment_length=4, num_segments=3, separator="-"):
 
 	# Generate segments
 	segments = []
-	for _ in range(num_segments):
-		segment = "".join(random.choice(characters) for _ in range(segment_length))
+	for _i in range(num_segments):
+		segment = "".join(random.choice(characters) for _j in range(segment_length))
 		segments.append(segment)
 
 	# Join segments with the separator
