@@ -57,7 +57,7 @@
  "links": [],
  "modified": "2025-12-29 15:36:01.882174",
  "modified_by": "Administrator",
- "module": "Sae",
+ "module": "Meet",
  "name": "Sae Meeting",
  "owner": "Administrator",
  "permissions": [
@@ -81,7 +81,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "Sae User",
+   "role": "Meet User",
    "share": 1,
    "write": 1
   }
