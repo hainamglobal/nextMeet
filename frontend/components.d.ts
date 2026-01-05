@@ -54,6 +54,9 @@ declare module "vue" {
 		LucideHand: typeof import("~icons/lucide/hand")["default"];
 		LucideHome: typeof import("~icons/lucide/home")["default"];
 		LucideLoader: typeof import("~icons/lucide/loader")["default"];
+		LucideMessageCircle: typeof import(
+			"~icons/lucide/message-circle",
+		)["default"];
 		LucideMessageSquare: typeof import(
 			"~icons/lucide/message-square",
 		)["default"];
@@ -72,10 +75,15 @@ declare module "vue" {
 		)["default"];
 		LucideMoreVertical: typeof import("~icons/lucide/more-vertical")["default"];
 		LucidePhoneOff: typeof import("~icons/lucide/phone-off")["default"];
+		LucidePlay: typeof import("~icons/lucide/play")["default"];
+		LucidePlayCircle: typeof import("~icons/lucide/play-circle")["default"];
 		LucidePlus: typeof import("~icons/lucide/plus")["default"];
 		LucideSearch: typeof import("~icons/lucide/search")["default"];
 		LucideSettings: typeof import("~icons/lucide/settings")["default"];
 		LucideSmile: typeof import("~icons/lucide/smile")["default"];
+		LucideUserCheck: typeof import("~icons/lucide/user-check")["default"];
+		LucideUserMinus: typeof import("~icons/lucide/user-minus")["default"];
+		LucideUserPlus: typeof import("~icons/lucide/user-plus")["default"];
 		LucideUsers: typeof import("~icons/lucide/users")["default"];
 		LucideVideo: typeof import("~icons/lucide/video")["default"];
 		LucideVideoOff: typeof import("~icons/lucide/video-off")["default"];
