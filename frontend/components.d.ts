@@ -35,6 +35,9 @@ declare module "vue" {
 			"./src/components/FloatingReactions.vue",
 		)["default"];
 		GroupTile: typeof import("./src/components/GroupTile.vue")["default"];
+		HostSettingsTab: typeof import(
+			"./src/components/settings/HostSettingsTab.vue",
+		)["default"];
 		JoinRequestNotifications: typeof import(
 			"./src/components/JoinRequestNotifications.vue",
 		)["default"];
@@ -89,9 +92,6 @@ declare module "vue" {
 		LucideXCircle: typeof import("~icons/lucide/x-circle")["default"];
 		MeetingAvatar: typeof import(
 			"./src/components/MeetingAvatar.vue",
-		)["default"];
-		MeetingHostControls: typeof import(
-			"./src/components/MeetingHostControls.vue",
 		)["default"];
 		MeetingInfoDialog: typeof import(
 			"./src/components/MeetingInfoDialog.vue",
