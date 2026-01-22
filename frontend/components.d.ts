@@ -11,6 +11,9 @@ declare module "vue" {
 		AudioIndicator: typeof import(
 			"./src/components/AudioIndicator.vue",
 		)["default"];
+		AudioSettingsTab: typeof import(
+			"./src/components/settings/AudioSettingsTab.vue",
+		)["default"];
 		BackgroundSettingsTab: typeof import(
 			"./src/components/settings/BackgroundSettingsTab.vue",
 		)["default"];
