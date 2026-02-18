@@ -63,5 +63,8 @@ export default defineConfig({
 	},
 	server: {
 		allowedHosts: true,
+		fs: {
+			allow: [path.resolve(__dirname, "..")],
+		},
 	},
 });
