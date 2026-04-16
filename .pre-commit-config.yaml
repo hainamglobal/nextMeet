@@ -31,11 +31,11 @@ repos:
         name: "Run ruff formatter"
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.1.1
+    rev: v2.4.12
     hooks:
       - id: biome-check
         name: Biome Check (Frontend)
-        entry: bash -c 'cd frontend && npx @biomejs/biome@1.9.4 check --write'
+        entry: bash -c 'cd frontend && npx biome check --write .'
         language: system
         files: "frontend/.*\\.(js|ts|vue|json|jsx|tsx)$"
         # Ignore any files that might contain jinja / bundles
@@ -52,7 +52,7 @@ repos:
 
       - id: biome-check
         name: Biome Check (SFU Server)
-        entry: bash -c 'cd sfu-server && yarn lint:fix'
+        entry: bash -c 'cd sfu-server && npx biome check --write .'
         language: system
         files: "sfu-server/.*\\.(js|ts|json)$"
         exclude: |
