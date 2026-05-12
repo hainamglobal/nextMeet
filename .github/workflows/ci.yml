@@ -11,10 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
+  server:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     name: Server
 
     services:
@@ -107,8 +105,8 @@ jobs:
           TYPE: server
 
   frontend:
-    name: Frontend
     runs-on: ubuntu-latest
+    name: Frontend
 
     steps:
       - uses: actions/checkout@v4
@@ -118,6 +116,11 @@ jobs:
           node-version: 24
           cache: "yarn"
           cache-dependency-path: frontend/yarn.lock
+
+      - name: Create bench config stub for typecheck
+        run: |
+          mkdir -p $(dirname $GITHUB_WORKSPACE)/sites
+          echo '{"socketio_port": 9000}' > $(dirname $GITHUB_WORKSPACE)/sites/common_site_config.json
 
       - name: Install dependencies
         working-directory: frontend
