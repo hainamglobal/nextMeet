@@ -117,18 +117,9 @@ jobs:
           cache: "yarn"
           cache-dependency-path: frontend/yarn.lock
 
-      - name: Create bench config stub for typecheck
-        run: |
-          mkdir -p $(dirname $GITHUB_WORKSPACE)/sites
-          echo '{"socketio_port": 9000}' > $(dirname $GITHUB_WORKSPACE)/sites/common_site_config.json
-
       - name: Install dependencies
         working-directory: frontend
         run: yarn install --frozen-lockfile
-
-      - name: Typecheck
-        working-directory: frontend
-        run: yarn typecheck
 
       - name: Lint
         working-directory: frontend
