@@ -20,7 +20,10 @@ services:
     image: ${SFU_IMAGE:-ghcr.io/frappe/meet/sfu-server:latest}
     container_name: meet-sfu
     restart: unless-stopped
-    network_mode: host
+    # network_mode: host
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+      - "${RTC_MIN_PORT:-40000}-${RTC_MAX_PORT:-40200}:${RTC_MIN_PORT:-40000}-${RTC_MAX_PORT:-40200}/udp"
     environment:
       - JWT_SECRET=${JWT_SECRET}
       - PORT=${PORT:-3000}
@@ -51,17 +54,17 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: meet-sfu-nginx
-    restart: unless-stopped
-    # host networking: nginx binds directly to host ports 80/443.
-    # No 'ports:' mapping needed (or allowed) with network_mode: host.
-    network_mode: host
+    # network_mode: host
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/templates:/etc/nginx/templates:ro
-      - certbot-webroot:/var/www/certbot:ro
-      - certbot-certs:/etc/letsencrypt:ro
+      - ./nginx/www:/var/www/certbot:ro
+      - ./nginx/certs:/etc/letsencrypt:ro
     environment:
-      - DOMAIN=${DOMAIN}
-      - SFU_UPSTREAM=127.0.0.1:${PORT:-3000}
+      - DOMAIN=${DOMAIN:-localhost}
+      - SFU_UPSTREAM=sfu:${PORT:-3000}
     # nginx:alpine uses envsubst automatically on /etc/nginx/templates/*.template
     # Note: deploy.sh handles startup order (SFU first, then nginx)
     logging:
@@ -75,8 +78,8 @@ services:
     image: certbot/certbot:latest
     container_name: meet-sfu-certbot
     volumes:
-      - certbot-webroot:/var/www/certbot
-      - certbot-certs:/etc/letsencrypt
+      - ./nginx/www:/var/www/certbot
+      - ./nginx/certs:/etc/letsencrypt
     # Renew certificates every 12 hours (certbot is idempotent)
     entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 43200 & wait $${!}; done"
     profiles:

@@ -1,13 +1,16 @@
 import path from "node:path";
 import vue from "@vitejs/plugin-vue";
 import frappeui from "frappe-ui/vite";
-import { defineConfig } from "vite";
+import {defineConfig} from "vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
 	plugins: [
 		frappeui({
 			frontendRoute: "/meet",
+			frappeProxy: {
+				port: 4000,
+			},
 		}),
 		vue(),
 	],
@@ -28,7 +31,11 @@ export default defineConfig({
 		include: ["feather-icons", "interactjs", "highlight.js/lib/core"],
 		exclude: ["frappe-ui"],
 	},
+
 	server: {
+		port: 4000,
+		host: true,
+		strictPort: true,
 		allowedHosts: true,
 		fs: {
 			allow: [path.resolve(__dirname, "..")],
