@@ -28,7 +28,7 @@ def get_sfu_config():
 	"""Get SFU configuration from runtime port file, site config or defaults"""
 	site_host = frappe.conf.get("host_name")
 	runtime_port = _read_runtime_port()
-	sfu_server_port = runtime_port
+	sfu_server_port = runtime_port or 4001
 	if site_host and ":" in site_host.replace("://", ""):
 		from urllib.parse import urlparse
 

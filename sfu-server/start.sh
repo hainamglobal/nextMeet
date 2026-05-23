@@ -58,7 +58,7 @@ else
 fi
 
 # Pick an available port starting from the configured value
-PORT=${PORT:-3001}
+PORT=${PORT:-4001}
 ORIGINAL_PORT=$PORT
 MAX_PORT=${MAX_PORT:-$((PORT + 50))}
 
