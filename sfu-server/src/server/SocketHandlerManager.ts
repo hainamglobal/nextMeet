@@ -53,6 +53,22 @@ export class SocketHandlerManager {
 		return !participantId.startsWith('preview-');
 	}
 
+	/**
+	 * Compute the site-namespaced SFU room id from the socket's token claims.
+	 * Two frappe sites sharing this SFU can both have a meeting with the same
+	 * name (e.g. "all-hands"), so we prefix the room id with the site to keep
+	 * them isolated. When the token has no site claim (legacy), the raw
+	 * meeting id is returned to preserve backward compatibility.
+	 */
+	private getRoomId(socket: Socket): string {
+		const meetingId = socket.meetingId;
+		const site = socket.site;
+		if (!site) {
+			return meetingId;
+		}
+		return `${site}::${meetingId}`;
+	}
+
 	private isDevOrCiEnvironment(): boolean {
 		const devEnv = process.env.NODE_ENV === 'development';
 		const inCi = process.env.CI === 'true' || !!process.env.GITHUB_ACTIONS;
@@ -305,7 +321,7 @@ export class SocketHandlerManager {
 		socket.on('get_router_rtp_capabilities', async (_data, callback) => {
 			try {
 				this.authManager.ensureFullAccess(socket);
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 
 				loggers.socketHandler.debug(
 					'Getting RTP capabilities for room: %s, user: %s',
@@ -328,7 +344,7 @@ export class SocketHandlerManager {
 		socket.on('get_existing_producers', async (_data, callback) => {
 			try {
 				this.authManager.ensureFullAccess(socket);
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 				const userId = socket.userId;
 
 				loggers.socketHandler.debug(
@@ -382,7 +398,7 @@ export class SocketHandlerManager {
 					return;
 				}
 
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 				loggers.socketHandler.debug(
 					'Getting room participants for room %s, user %s, scope %s',
 					roomId,
@@ -420,7 +436,8 @@ export class SocketHandlerManager {
 		});
 
 		socket.on('leave_room', async (data = {}) => {
-			const roomId = socket.roomId || data.roomId;
+			const roomId =
+				socket.roomId || (data.roomId ? this.getRoomId(socket) : undefined);
 			const participantId = socket.participantId;
 			if (roomId && participantId) {
 				try {
@@ -461,39 +478,47 @@ export class SocketHandlerManager {
 		const { roomId, participantId, userData } = data;
 
 		try {
-			// Validate that roomId matches the token's meeting_id
+			// Validate that the client-supplied roomId matches the token's meeting_id.
+			// Clients only ever know the raw meeting name; the site-namespaced room
+			// id is derived server-side below to keep rooms isolated across sites
+			// that share this SFU.
 			if (socket.meetingId && socket.meetingId !== roomId) {
 				throw new Error(
 					`Room ID mismatch: token has ${socket.meetingId}, trying to join ${roomId}`,
 				);
 			}
 
-			await this.mediasoup.createRoom(roomId, (roomId, participantIds) => {
-				this.emitToFullAccessParticipants(roomId, 'active_speaker', {
-					participantIds,
-				});
-			});
+			const scopedRoomId = this.getRoomId(socket);
 
-			socket.join(roomId);
+			await this.mediasoup.createRoom(
+				scopedRoomId,
+				(roomId, participantIds) => {
+					this.emitToFullAccessParticipants(roomId, 'active_speaker', {
+						participantIds,
+					});
+				},
+			);
+
+			socket.join(scopedRoomId);
 
 			if (!socket.meetingId) {
 				socket.meetingId = roomId;
 			}
-			socket.roomId = roomId;
+			socket.roomId = scopedRoomId;
 			socket.participantId = participantId;
 
 			// Track socket by scope
 			if (socket.scope === 'full') {
-				if (!this.fullAccessSockets.has(roomId)) {
-					this.fullAccessSockets.set(roomId, new Set());
+				if (!this.fullAccessSockets.has(scopedRoomId)) {
+					this.fullAccessSockets.set(scopedRoomId, new Set());
 				}
-				this.fullAccessSockets.get(roomId)?.add(socket.id);
+				this.fullAccessSockets.get(scopedRoomId)?.add(socket.id);
 
-				this.mediasoup.addPeer(roomId, participantId, userData);
+				this.mediasoup.addPeer(scopedRoomId, participantId, userData);
 
 				if (this.isRealParticipant(userData.userId)) {
 					this.emitParticipantEvent(
-						roomId,
+						scopedRoomId,
 						'participant_joined',
 						participantId,
 						userData,
@@ -503,25 +528,25 @@ export class SocketHandlerManager {
 				loggers.socketHandler.info(
 					'User %s joined room %s with media state: audio=%s, video=%s',
 					participantId,
-					roomId,
+					scopedRoomId,
 					userData.audio_enabled,
 					userData.video_enabled,
 				);
 			} else if (socket.scope === 'presence-preview') {
-				if (!this.previewSockets.has(roomId)) {
-					this.previewSockets.set(roomId, new Set());
+				if (!this.previewSockets.has(scopedRoomId)) {
+					this.previewSockets.set(scopedRoomId, new Set());
 				}
-				this.previewSockets.get(roomId)?.add(socket.id);
+				this.previewSockets.get(scopedRoomId)?.add(socket.id);
 
 				loggers.socketHandler.info(
 					'Preview user %s observing room %s (not added as peer)',
 					participantId,
-					roomId,
+					scopedRoomId,
 				);
 			}
 
 			socket.emit('existing_raised_hands', {
-				hands: this.raisedHands[roomId] || {},
+				hands: this.raisedHands[scopedRoomId] || {},
 			});
 		} catch (error) {
 			loggers.socketHandler.error(
@@ -538,7 +563,7 @@ export class SocketHandlerManager {
 			try {
 				this.authManager.ensureFullAccess(socket);
 				const { direction } = data;
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 				const userId = socket.userId;
 
 				const transportParams = await this.mediasoup.createWebRtcTransport(
@@ -604,7 +629,7 @@ export class SocketHandlerManager {
 
 				this.authManager.ensureFullAccess(socket);
 
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 				const userId = socket.userId;
 
 				const transportParams = await this.mediasoup.createPlainTransport(
@@ -639,7 +664,7 @@ export class SocketHandlerManager {
 
 				callback({ success: true, ...producer, isScreen });
 
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 				this.emitToFullAccessParticipants(roomId, 'producer_created', {
 					roomId: roomId,
 					participantId: socket.userId,
@@ -685,7 +710,7 @@ export class SocketHandlerManager {
 
 				callback({ success: true, ...result });
 
-				const roomId = socket.meetingId;
+				const roomId = this.getRoomId(socket);
 				this.emitToFullAccessParticipants(roomId, 'producer_closed', {
 					roomId: roomId,
 					participantId: socket.userId,
@@ -697,7 +722,7 @@ export class SocketHandlerManager {
 					for (const rc of result.removedConsumers) {
 						const targetPeerSocket = Array.from(
 							this.io.sockets.sockets.values(),
-						).find((s) => s.userId === rc.peerId && s.meetingId === rc.roomId);
+						).find((s) => s.userId === rc.peerId && s.roomId === rc.roomId);
 						if (targetPeerSocket) {
 							targetPeerSocket.emit('consumer_closed', {
 								consumerId: rc.consumerId,
