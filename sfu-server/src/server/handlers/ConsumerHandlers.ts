@@ -1,16 +1,14 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class ConsumerHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerConsumerHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('create_consumer', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { transportId, producerId, rtpCapabilities } = data;
-				const consumer = await this.deps.mediasoup.createConsumer(
+				const consumer = await deps.mediasoup.createConsumer(
 					transportId,
 					producerId,
 					rtpCapabilities,
@@ -28,9 +26,9 @@ export class ConsumerHandlers implements SocketHandler {
 
 		socket.on('close_consumer', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { consumerId } = data;
-				await this.deps.mediasoup.closeConsumer(consumerId);
+				await deps.mediasoup.closeConsumer(consumerId);
 
 				callback({ success: true });
 			} catch (error) {
@@ -54,7 +52,7 @@ export class ConsumerHandlers implements SocketHandler {
 				const width = Math.round(data.width);
 				const height = Math.round(data.height);
 
-				const result = await this.deps.mediasoup.updateConsumerPreferences({
+				const result = await deps.mediasoup.updateConsumerPreferences({
 					consumerId,
 					visible,
 					width,
@@ -70,5 +68,5 @@ export class ConsumerHandlers implements SocketHandler {
 				callback({ success: false, error: (error as Error).message });
 			}
 		});
-	}
+	};
 }

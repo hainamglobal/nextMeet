@@ -1,21 +1,19 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class MediaControlHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerMediaControlHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('media_control', async (data) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { action } = data;
 				const roomId = socket.roomId;
 
 				if (!roomId || !socket.participantId) return;
 
 				try {
-					this.deps.mediasoup.applyMediaControl(
+					deps.mediasoup.applyMediaControl(
 						roomId,
 						socket.participantId,
 						action,
@@ -29,21 +27,17 @@ export class MediaControlHandlers implements SocketHandler {
 
 				if (
 					action === 'unmute' &&
-					this.deps.registry.hasRaisedHand(roomId, socket.participantId)
+					deps.registry.hasRaisedHand(roomId, socket.participantId)
 				) {
-					this.deps.registry.clearRaisedHand(roomId, socket.participantId);
-					this.deps.registry.emitToFullAccessParticipants(
-						roomId,
-						'hand_raised',
-						{
-							participantId: socket.participantId,
-							raised: false,
-							timestamp: new Date().toISOString(),
-						},
-					);
+					deps.registry.clearRaisedHand(roomId, socket.participantId);
+					deps.registry.emitToFullAccessParticipants(roomId, 'hand_raised', {
+						participantId: socket.participantId,
+						raised: false,
+						timestamp: new Date().toISOString(),
+					});
 				}
 
-				this.deps.registry.emitToFullAccessParticipants(
+				deps.registry.emitToFullAccessParticipants(
 					roomId,
 					'media_control_update',
 					{
@@ -59,5 +53,5 @@ export class MediaControlHandlers implements SocketHandler {
 				);
 			}
 		});
-	}
+	};
 }

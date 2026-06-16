@@ -1,20 +1,18 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 import { getRoomId } from './utils';
 
-export class WebRtcTransportHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerWebRtcTransportHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('create_webrtc_transport', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { direction } = data;
 				const roomId = getRoomId(socket);
 				const userId = socket.userId;
 
-				const transportParams = await this.deps.mediasoup.createWebRtcTransport(
+				const transportParams = await deps.mediasoup.createWebRtcTransport(
 					roomId,
 					userId,
 					direction,
@@ -32,9 +30,9 @@ export class WebRtcTransportHandlers implements SocketHandler {
 
 		socket.on('connect_webrtc_transport', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { transportId, dtlsParameters } = data;
-				await this.deps.mediasoup.connectWebRtcTransport(
+				await deps.mediasoup.connectWebRtcTransport(
 					transportId,
 					dtlsParameters,
 				);
@@ -51,10 +49,10 @@ export class WebRtcTransportHandlers implements SocketHandler {
 
 		socket.on('restart_webrtc_transport_ice', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { transportId } = data;
 				const iceParameters =
-					await this.deps.mediasoup.restartWebRtcTransportIce(transportId);
+					await deps.mediasoup.restartWebRtcTransportIce(transportId);
 
 				callback({ success: true, iceParameters });
 			} catch (error) {
@@ -75,12 +73,12 @@ export class WebRtcTransportHandlers implements SocketHandler {
 					);
 				}
 
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 
 				const roomId = getRoomId(socket);
 				const userId = socket.userId;
 
-				const transportParams = await this.deps.mediasoup.createPlainTransport(
+				const transportParams = await deps.mediasoup.createPlainTransport(
 					roomId,
 					userId,
 				);
@@ -94,5 +92,5 @@ export class WebRtcTransportHandlers implements SocketHandler {
 				callback({ success: false, error: (error as Error).message });
 			}
 		});
-	}
+	};
 }

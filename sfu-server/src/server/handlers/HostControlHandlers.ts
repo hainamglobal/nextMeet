@@ -1,15 +1,13 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 import { findSocketByParticipantId } from './utils';
 
-export class HostControlHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerHostControlHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('host_control', async (data) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { action, targetParticipantId } = data;
 				const roomId = socket.roomId;
 
@@ -34,9 +32,7 @@ export class HostControlHandlers implements SocketHandler {
 					return;
 				}
 
-				if (
-					!this.deps.mediasoup.peerExistsInRoom(roomId, targetParticipantId)
-				) {
+				if (!deps.mediasoup.peerExistsInRoom(roomId, targetParticipantId)) {
 					socket.emit('sfu_error', {
 						error: 'Target participant not found',
 						timestamp: new Date().toISOString(),
@@ -45,7 +41,7 @@ export class HostControlHandlers implements SocketHandler {
 				}
 
 				const targetSocket = findSocketByParticipantId(
-					this.deps.io,
+					deps.io,
 					roomId,
 					targetParticipantId,
 				);
@@ -99,9 +95,9 @@ export class HostControlHandlers implements SocketHandler {
 						}, 1000);
 						break;
 					case 'lower_hand':
-						if (this.deps.registry.hasRaisedHand(roomId, targetParticipantId)) {
-							this.deps.registry.clearRaisedHand(roomId, targetParticipantId);
-							this.deps.registry.emitToFullAccessParticipants(
+						if (deps.registry.hasRaisedHand(roomId, targetParticipantId)) {
+							deps.registry.clearRaisedHand(roomId, targetParticipantId);
+							deps.registry.emitToFullAccessParticipants(
 								roomId,
 								'hand_raised',
 								{
@@ -140,5 +136,5 @@ export class HostControlHandlers implements SocketHandler {
 				});
 			}
 		});
-	}
+	};
 }

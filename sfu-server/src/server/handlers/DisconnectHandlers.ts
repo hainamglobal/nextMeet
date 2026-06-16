@@ -1,14 +1,12 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 import { isRealParticipant } from './utils';
 
-export class DisconnectHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerDisconnectHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('disconnect', async () => {
-			this.deps.authManager.cleanupSocket(socket);
+			deps.authManager.cleanupSocket(socket);
 
 			loggers.socketHandler.info(
 				'Disconnected: %s (User: %s, Scope: %s)',
@@ -22,22 +20,22 @@ export class DisconnectHandlers implements SocketHandler {
 
 			if (roomId && participantId) {
 				try {
-					this.deps.registry.removeSocket(roomId, socket.id);
+					deps.registry.removeSocket(roomId, socket.id);
 
 					if (socket.scope === 'full') {
-						await this.deps.mediasoup.removePeer(roomId, participantId);
+						await deps.mediasoup.removePeer(roomId, participantId);
 
 						if (isRealParticipant(participantId)) {
-							this.deps.registry.emitParticipantEvent(
+							deps.registry.emitParticipantEvent(
 								roomId,
 								'participant_left',
 								participantId,
 							);
 						}
 
-						if (this.deps.registry.hasRaisedHand(roomId, participantId)) {
-							this.deps.registry.clearRaisedHand(roomId, participantId);
-							this.deps.registry.emitToFullAccessParticipants(
+						if (deps.registry.hasRaisedHand(roomId, participantId)) {
+							deps.registry.clearRaisedHand(roomId, participantId);
+							deps.registry.emitToFullAccessParticipants(
 								roomId,
 								'hand_raised',
 								{
@@ -55,14 +53,14 @@ export class DisconnectHandlers implements SocketHandler {
 						);
 					}
 
-					if (this.deps.registry.isEmpty(roomId)) {
-						this.deps.registry.cleanupRoom(roomId);
-						this.deps.mediasoup.closeRoom(roomId);
+					if (deps.registry.isEmpty(roomId)) {
+						deps.registry.cleanupRoom(roomId);
+						deps.mediasoup.closeRoom(roomId);
 					}
 				} catch (error) {
 					loggers.socketHandler.error('Error handling disconnect: %s', error);
 				}
 			}
 		});
-	}
+	};
 }

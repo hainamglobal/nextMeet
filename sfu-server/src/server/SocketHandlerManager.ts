@@ -3,23 +3,21 @@ import type { MediasoupManager } from '../mediasoup/MediasoupManager';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types';
 import { RateLimiter } from '../utils/rateLimiter';
 import type { AuthManager } from './AuthManager';
-import {
-	AuthHandlers,
-	ChatHandlers,
-	ConsumerHandlers,
-	DisconnectHandlers,
-	ErrorHandlers,
-	HostControlHandlers,
-	MediaControlHandlers,
-	ProducerHandlers,
-	RaiseHandHandlers,
-	ReactionHandlers,
-	RoomJoinHandlers,
-	RoomQueryHandlers,
-	ScreenShareHandlers,
-	WebRtcTransportHandlers,
-} from './handlers';
-import type { HandlerDeps, SocketHandler } from './handlers/Handler';
+import { registerAuthHandlers } from './handlers/AuthHandlers';
+import { registerChatHandlers } from './handlers/ChatHandlers';
+import { registerConsumerHandlers } from './handlers/ConsumerHandlers';
+import { registerDisconnectHandlers } from './handlers/DisconnectHandlers';
+import { registerErrorHandlers } from './handlers/ErrorHandlers';
+import type { HandlerDeps } from './handlers/Handler';
+import { registerHostControlHandlers } from './handlers/HostControlHandlers';
+import { registerMediaControlHandlers } from './handlers/MediaControlHandlers';
+import { registerProducerHandlers } from './handlers/ProducerHandlers';
+import { registerRaiseHandHandlers } from './handlers/RaiseHandHandlers';
+import { registerReactionHandlers } from './handlers/ReactionHandlers';
+import { registerRoomJoinHandlers } from './handlers/RoomJoinHandlers';
+import { registerRoomQueryHandlers } from './handlers/RoomQueryHandlers';
+import { registerScreenShareHandlers } from './handlers/ScreenShareHandlers';
+import { registerWebRtcTransportHandlers } from './handlers/WebRtcTransportHandlers';
 import { RoomRegistry } from './RoomRegistry';
 
 export class SocketHandlerManager {
@@ -28,7 +26,7 @@ export class SocketHandlerManager {
 	private authManager: AuthManager;
 	private registry: RoomRegistry;
 	private rateLimiter: RateLimiter;
-	private handlers: SocketHandler[];
+	private registerHandlers: ((socket: import('socket.io').Socket) => void)[];
 
 	constructor(
 		io: Server<ClientToServerEvents, ServerToClientEvents>,
@@ -49,21 +47,21 @@ export class SocketHandlerManager {
 			rateLimiter: this.rateLimiter,
 		};
 
-		this.handlers = [
-			new AuthHandlers(deps),
-			new RoomJoinHandlers(deps),
-			new RoomQueryHandlers(deps),
-			new WebRtcTransportHandlers(deps),
-			new ProducerHandlers(deps),
-			new ConsumerHandlers(deps),
-			new MediaControlHandlers(deps),
-			new HostControlHandlers(deps),
-			new ScreenShareHandlers(deps),
-			new ChatHandlers(deps),
-			new ReactionHandlers(deps),
-			new RaiseHandHandlers(deps),
-			new DisconnectHandlers(deps),
-			new ErrorHandlers(deps),
+		this.registerHandlers = [
+			registerAuthHandlers(deps),
+			registerRoomJoinHandlers(deps),
+			registerRoomQueryHandlers(deps),
+			registerWebRtcTransportHandlers(deps),
+			registerProducerHandlers(deps),
+			registerConsumerHandlers(deps),
+			registerMediaControlHandlers(deps),
+			registerHostControlHandlers(deps),
+			registerScreenShareHandlers(deps),
+			registerChatHandlers(deps),
+			registerReactionHandlers(deps),
+			registerRaiseHandHandlers(deps),
+			registerDisconnectHandlers(deps),
+			registerErrorHandlers(deps),
 		];
 
 		this.mediasoup.onNetworkQualityUpdate((roomId, peerId, quality) => {
@@ -93,8 +91,8 @@ export class SocketHandlerManager {
 				next();
 			});
 
-			for (const handler of this.handlers) {
-				handler.register(socket);
+			for (const register of this.registerHandlers) {
+				register(socket);
 			}
 		});
 	}

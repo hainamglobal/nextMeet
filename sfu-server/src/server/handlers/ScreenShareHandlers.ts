@@ -1,21 +1,19 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class ScreenShareHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerScreenShareHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('screen_share', (data) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { action, shareData } = data;
 				const roomId = socket.roomId;
 
 				if (!roomId) return;
 
 				if (action === 'start_share') {
-					this.deps.registry.emitToFullAccessParticipants(
+					deps.registry.emitToFullAccessParticipants(
 						roomId,
 						'screen_share_started',
 						{
@@ -25,7 +23,7 @@ export class ScreenShareHandlers implements SocketHandler {
 						},
 					);
 				} else if (action === 'stop_share') {
-					this.deps.registry.emitToFullAccessParticipants(
+					deps.registry.emitToFullAccessParticipants(
 						roomId,
 						'screen_share_stopped',
 						{
@@ -41,5 +39,5 @@ export class ScreenShareHandlers implements SocketHandler {
 				);
 			}
 		});
-	}
+	};
 }

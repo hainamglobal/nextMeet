@@ -1,15 +1,13 @@
 import type { Socket } from 'socket.io';
 import type { ReactionMessage } from '../../types';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class ReactionHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerReactionHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('reaction:send', (data = {}) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const roomId = socket.roomId;
 				const reaction =
 					typeof data.reaction === 'string' ? data.reaction : null;
@@ -26,7 +24,7 @@ export class ReactionHandlers implements SocketHandler {
 					timestamp: new Date().toISOString(),
 				};
 
-				this.deps.registry.emitToFullAccessParticipants(
+				deps.registry.emitToFullAccessParticipants(
 					roomId,
 					'reaction:message',
 					payload,
@@ -38,5 +36,5 @@ export class ReactionHandlers implements SocketHandler {
 				);
 			}
 		});
-	}
+	};
 }

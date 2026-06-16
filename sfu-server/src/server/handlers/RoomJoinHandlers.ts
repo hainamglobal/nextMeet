@@ -1,17 +1,95 @@
 import type { Socket } from 'socket.io';
 import type { UserData } from '../../types';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 import { getRoomId, isRealParticipant } from './utils';
 
-export class RoomJoinHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
+export function registerRoomJoinHandlers(deps: HandlerDeps) {
+	async function handleJoinRoom(
+		socket: Socket,
+		data: { roomId: string; participantId: string; userData: UserData },
+	): Promise<void> {
+		const { roomId, participantId, userData } = data;
 
-	register(socket: Socket): void {
+		try {
+			if (socket.meetingId && socket.meetingId !== roomId) {
+				throw new Error(
+					`Room ID mismatch: token has ${socket.meetingId}, trying to join ${roomId}`,
+				);
+			}
+
+			const scopedRoomId = getRoomId(socket);
+
+			await deps.mediasoup.createRoom(
+				scopedRoomId,
+				(roomIdInner, participantIds) => {
+					deps.registry.emitToFullAccessParticipants(
+						roomIdInner,
+						'active_speaker',
+						{ participantIds },
+					);
+				},
+			);
+
+			socket.join(scopedRoomId);
+
+			if (!socket.meetingId) {
+				socket.meetingId = roomId;
+			}
+			socket.roomId = scopedRoomId;
+			socket.participantId = participantId;
+
+			if (socket.scope === 'full') {
+				deps.registry.addFullAccessSocket(scopedRoomId, socket.id);
+				deps.mediasoup.addPeer(scopedRoomId, participantId, userData);
+
+				if (isRealParticipant(userData.userId)) {
+					deps.registry.emitParticipantEvent(
+						scopedRoomId,
+						'participant_joined',
+						participantId,
+						userData,
+					);
+				}
+
+				loggers.socketHandler.info(
+					'User %s joined room %s with media state: audio=%s, video=%s',
+					participantId,
+					scopedRoomId,
+					userData.audio_enabled,
+					userData.video_enabled,
+				);
+			} else if (socket.scope === 'presence-preview') {
+				deps.registry.addPreviewSocket(scopedRoomId, socket.id);
+
+				loggers.socketHandler.info(
+					'Preview user %s observing room %s (not added as peer)',
+					participantId,
+					scopedRoomId,
+				);
+			}
+
+			socket.emit('existing_raised_hands', {
+				hands: deps.registry.getRaisedHands(scopedRoomId) as unknown as Record<
+					string,
+					boolean
+				>,
+			});
+		} catch (error) {
+			loggers.socketHandler.error(
+				'Error in handleJoinRoom for user %s: %s',
+				participantId,
+				(error as Error).message,
+			);
+			throw error;
+		}
+	}
+
+	return (socket: Socket) => {
 		socket.on('join_room', async (data, callback) => {
 			try {
 				const { roomId, userData, mediaState } = data;
-				await this.handleJoinRoom(socket, {
+				await handleJoinRoom(socket, {
 					roomId,
 					participantId: socket.userId,
 					userData: {
@@ -39,7 +117,7 @@ export class RoomJoinHandlers implements SocketHandler {
 			const participantId = socket.participantId;
 			if (roomId && participantId) {
 				try {
-					await this.deps.mediasoup.removePeer(roomId, participantId);
+					await deps.mediasoup.removePeer(roomId, participantId);
 
 					if (isRealParticipant(participantId)) {
 						socket
@@ -47,17 +125,13 @@ export class RoomJoinHandlers implements SocketHandler {
 							.emit('participant_left', { roomId, participantId });
 					}
 
-					if (this.deps.registry.hasRaisedHand(roomId, participantId)) {
-						this.deps.registry.clearRaisedHand(roomId, participantId);
-						this.deps.registry.emitToFullAccessParticipants(
-							roomId,
-							'hand_raised',
-							{
-								participantId,
-								raised: false,
-								timestamp: new Date().toISOString(),
-							},
-						);
+					if (deps.registry.hasRaisedHand(roomId, participantId)) {
+						deps.registry.clearRaisedHand(roomId, participantId);
+						deps.registry.emitToFullAccessParticipants(roomId, 'hand_raised', {
+							participantId,
+							raised: false,
+							timestamp: new Date().toISOString(),
+						});
 					}
 
 					socket.leave(roomId);
@@ -71,84 +145,5 @@ export class RoomJoinHandlers implements SocketHandler {
 				}
 			}
 		});
-	}
-
-	private async handleJoinRoom(
-		socket: Socket,
-		data: { roomId: string; participantId: string; userData: UserData },
-	): Promise<void> {
-		const { roomId, participantId, userData } = data;
-
-		try {
-			if (socket.meetingId && socket.meetingId !== roomId) {
-				throw new Error(
-					`Room ID mismatch: token has ${socket.meetingId}, trying to join ${roomId}`,
-				);
-			}
-
-			const scopedRoomId = getRoomId(socket);
-
-			await this.deps.mediasoup.createRoom(
-				scopedRoomId,
-				(roomIdInner, participantIds) => {
-					this.deps.registry.emitToFullAccessParticipants(
-						roomIdInner,
-						'active_speaker',
-						{ participantIds },
-					);
-				},
-			);
-
-			socket.join(scopedRoomId);
-
-			if (!socket.meetingId) {
-				socket.meetingId = roomId;
-			}
-			socket.roomId = scopedRoomId;
-			socket.participantId = participantId;
-
-			if (socket.scope === 'full') {
-				this.deps.registry.addFullAccessSocket(scopedRoomId, socket.id);
-				this.deps.mediasoup.addPeer(scopedRoomId, participantId, userData);
-
-				if (isRealParticipant(userData.userId)) {
-					this.deps.registry.emitParticipantEvent(
-						scopedRoomId,
-						'participant_joined',
-						participantId,
-						userData,
-					);
-				}
-
-				loggers.socketHandler.info(
-					'User %s joined room %s with media state: audio=%s, video=%s',
-					participantId,
-					scopedRoomId,
-					userData.audio_enabled,
-					userData.video_enabled,
-				);
-			} else if (socket.scope === 'presence-preview') {
-				this.deps.registry.addPreviewSocket(scopedRoomId, socket.id);
-
-				loggers.socketHandler.info(
-					'Preview user %s observing room %s (not added as peer)',
-					participantId,
-					scopedRoomId,
-				);
-			}
-
-			socket.emit('existing_raised_hands', {
-				hands: this.deps.registry.getRaisedHands(
-					scopedRoomId,
-				) as unknown as Record<string, boolean>,
-			});
-		} catch (error) {
-			loggers.socketHandler.error(
-				'Error in handleJoinRoom for user %s: %s',
-				participantId,
-				(error as Error).message,
-			);
-			throw error;
-		}
-	}
+	};
 }

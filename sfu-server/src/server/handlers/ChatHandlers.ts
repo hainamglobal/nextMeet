@@ -1,22 +1,20 @@
 import type { Socket } from 'socket.io';
 import type { ChatMessage } from '../../types';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class ChatHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerChatHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('chat:toggle_restriction', (data) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const roomId = socket.roomId;
 
 				if (!roomId || (!socket.isHost && !socket.isCohost)) return;
 				const isRestricted = Boolean(data.enabled);
-				this.deps.registry.setHostOnlyChat(roomId, isRestricted);
+				deps.registry.setHostOnlyChat(roomId, isRestricted);
 
-				this.deps.registry.emitToFullAccessParticipants(
+				deps.registry.emitToFullAccessParticipants(
 					roomId,
 					'chat:restriction_updated',
 					{ enabled: isRestricted },
@@ -28,7 +26,7 @@ export class ChatHandlers implements SocketHandler {
 
 		socket.on('chat:send', (data = {}) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const roomId = socket.roomId;
 				const text = (
 					typeof data.message === 'string' ? data.message : ''
@@ -44,7 +42,7 @@ export class ChatHandlers implements SocketHandler {
 				}
 
 				if (
-					this.deps.registry.isHostOnlyChat(roomId) &&
+					deps.registry.isHostOnlyChat(roomId) &&
 					!socket.isHost &&
 					!socket.isCohost
 				) {
@@ -65,7 +63,7 @@ export class ChatHandlers implements SocketHandler {
 				};
 				if (data.clientId) payload.clientId = String(data.clientId);
 
-				this.deps.registry.emitToFullAccessParticipants(
+				deps.registry.emitToFullAccessParticipants(
 					roomId,
 					'chat:message',
 					payload,
@@ -77,5 +75,5 @@ export class ChatHandlers implements SocketHandler {
 				);
 			}
 		});
-	}
+	};
 }

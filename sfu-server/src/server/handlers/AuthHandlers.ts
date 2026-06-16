@@ -1,9 +1,9 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class AuthHandlers implements SocketHandler {
-	register(socket: Socket): void {
+export function registerAuthHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('auth:update_token', (data, callback) => {
 			try {
 				const token = typeof data?.token === 'string' ? data.token : null;
@@ -12,7 +12,7 @@ export class AuthHandlers implements SocketHandler {
 					return;
 				}
 
-				this.deps.authManager.updateSocketToken(socket, token);
+				deps.authManager.updateSocketToken(socket, token);
 				callback({ success: true });
 			} catch (error) {
 				const message = (error as Error).message || 'Token update failed';
@@ -22,13 +22,8 @@ export class AuthHandlers implements SocketHandler {
 					message,
 				);
 				callback({ success: false, error: message });
-				this.deps.authManager.triggerTokenExpiry(
-					socket,
-					'invalid_refresh_token',
-				);
+				deps.authManager.triggerTokenExpiry(socket, 'invalid_refresh_token');
 			}
 		});
-	}
-
-	constructor(private deps: HandlerDeps) {}
+	};
 }

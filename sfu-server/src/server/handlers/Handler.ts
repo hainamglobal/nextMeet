@@ -23,7 +23,3 @@ export interface HandlerDeps {
 	authManager: AuthManager;
 	rateLimiter: RateLimiter;
 }
-
-export interface SocketHandler {
-	register(socket: Socket): void;
-}

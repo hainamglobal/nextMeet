@@ -1,17 +1,15 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 import { getRoomId } from './utils';
 
-export class ProducerHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerProducerHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('create_producer', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { transportId, rtpParameters, kind, appData = {} } = data;
-				const producer = await this.deps.mediasoup.createProducer(
+				const producer = await deps.mediasoup.createProducer(
 					transportId,
 					rtpParameters,
 					kind,
@@ -25,18 +23,14 @@ export class ProducerHandlers implements SocketHandler {
 				callback({ success: true, ...producer, isScreen });
 
 				const roomId = getRoomId(socket);
-				this.deps.registry.emitToFullAccessParticipants(
+				deps.registry.emitToFullAccessParticipants(roomId, 'producer_created', {
 					roomId,
-					'producer_created',
-					{
-						roomId,
-						participantId: socket.userId,
-						producerId: producer.id,
-						kind: producer.kind,
-						paused: false,
-						isScreen,
-					},
-				);
+					participantId: socket.userId,
+					producerId: producer.id,
+					kind: producer.kind,
+					paused: false,
+					isScreen,
+				});
 			} catch (error) {
 				loggers.socketHandler.error(
 					'Error creating producer: %s',
@@ -48,35 +42,31 @@ export class ProducerHandlers implements SocketHandler {
 
 		socket.on('close_producer', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { producerId } = data;
-				const result = this.deps.mediasoup.closeProducer(producerId);
+				const result = deps.mediasoup.closeProducer(producerId);
 
 				callback({ success: true, ...result });
 
 				const roomId = getRoomId(socket);
-				this.deps.registry.emitToFullAccessParticipants(
+				deps.registry.emitToFullAccessParticipants(roomId, 'producer_closed', {
 					roomId,
-					'producer_closed',
-					{
-						roomId,
-						participantId: socket.userId,
-						producerId,
-						isScreen: !!result.isScreen,
-					},
-				);
+					participantId: socket.userId,
+					producerId,
+					isScreen: !!result.isScreen,
+				});
 
 				try {
 					for (const rc of result.removedConsumers) {
 						const targetPeerSocket = Array.from(
-							this.deps.io.sockets.sockets.values(),
+							deps.io.sockets.sockets.values(),
 						).find((s) => s.userId === rc.peerId && s.roomId === rc.roomId);
 						if (targetPeerSocket) {
 							targetPeerSocket.emit('consumer_closed', {
 								consumerId: rc.consumerId,
 							});
 						} else {
-							this.deps.registry.emitToFullAccessParticipants(
+							deps.registry.emitToFullAccessParticipants(
 								roomId,
 								'consumer_closed',
 								{ consumerId: rc.consumerId, peerId: rc.peerId },
@@ -100,9 +90,9 @@ export class ProducerHandlers implements SocketHandler {
 
 		socket.on('pause_producer', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { producerId } = data;
-				const paused = await this.deps.mediasoup.pauseProducer(producerId);
+				const paused = await deps.mediasoup.pauseProducer(producerId);
 
 				callback({ success: true, paused });
 			} catch (error) {
@@ -116,9 +106,9 @@ export class ProducerHandlers implements SocketHandler {
 
 		socket.on('resume_producer', async (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const { producerId } = data;
-				const resumed = await this.deps.mediasoup.resumeProducer(producerId);
+				const resumed = await deps.mediasoup.resumeProducer(producerId);
 
 				callback({ success: true, resumed });
 			} catch (error) {
@@ -129,5 +119,5 @@ export class ProducerHandlers implements SocketHandler {
 				callback({ success: false, error: (error as Error).message });
 			}
 		});
-	}
+	};
 }

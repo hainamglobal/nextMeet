@@ -1,16 +1,14 @@
 import type { Socket } from 'socket.io';
 import type { ParticipantInfo, PreviewParticipantInfo } from '../../types';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 import { checkSocketRateLimits, getRoomId } from './utils';
 
-export class RoomQueryHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerRoomQueryHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('get_router_rtp_capabilities', async (_data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const roomId = getRoomId(socket);
 
 				loggers.socketHandler.debug(
@@ -19,8 +17,7 @@ export class RoomQueryHandlers implements SocketHandler {
 					socket.userId,
 				);
 
-				const rtpCapabilities =
-					this.deps.mediasoup.getRouterRtpCapabilities(roomId);
+				const rtpCapabilities = deps.mediasoup.getRouterRtpCapabilities(roomId);
 
 				callback({ success: true, rtpCapabilities });
 			} catch (error) {
@@ -34,7 +31,7 @@ export class RoomQueryHandlers implements SocketHandler {
 
 		socket.on('get_existing_producers', async (_data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const roomId = getRoomId(socket);
 				const userId = socket.userId;
 
@@ -44,7 +41,7 @@ export class RoomQueryHandlers implements SocketHandler {
 					userId,
 				);
 
-				const producers = await this.deps.mediasoup.getExistingProducers(
+				const producers = await deps.mediasoup.getExistingProducers(
 					roomId,
 					userId,
 				);
@@ -78,16 +75,10 @@ export class RoomQueryHandlers implements SocketHandler {
 
 		socket.on('get_room_participants', async (_data, callback) => {
 			try {
-				this.deps.authManager.ensurePresenceAccess(socket);
+				deps.authManager.ensurePresenceAccess(socket);
 
 				if (
-					!checkSocketRateLimits(
-						socket,
-						this.deps.rateLimiter,
-						10,
-						10,
-						60 * 1000,
-					)
+					!checkSocketRateLimits(socket, deps.rateLimiter, 10, 10, 60 * 1000)
 				) {
 					callback({
 						success: false,
@@ -103,7 +94,7 @@ export class RoomQueryHandlers implements SocketHandler {
 					socket.userId,
 					socket.scope,
 				);
-				const participants = this.deps.mediasoup.getRoomParticipants(roomId);
+				const participants = deps.mediasoup.getRoomParticipants(roomId);
 
 				let responseParticipants: ParticipantInfo[] | PreviewParticipantInfo[] =
 					participants;
@@ -132,5 +123,5 @@ export class RoomQueryHandlers implements SocketHandler {
 				callback({ success: false, error: (error as Error).message });
 			}
 		});
-	}
+	};
 }

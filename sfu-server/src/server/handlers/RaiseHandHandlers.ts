@@ -1,14 +1,12 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
-import type { HandlerDeps, SocketHandler } from './Handler';
+import type { HandlerDeps } from './Handler';
 
-export class RaiseHandHandlers implements SocketHandler {
-	constructor(private deps: HandlerDeps) {}
-
-	register(socket: Socket): void {
+export function registerRaiseHandHandlers(deps: HandlerDeps) {
+	return (socket: Socket) => {
 		socket.on('raise_hand', (data, callback) => {
 			try {
-				this.deps.authManager.ensureFullAccess(socket);
+				deps.authManager.ensureFullAccess(socket);
 				const roomId = socket.roomId;
 				const raised = typeof data?.raised === 'boolean' ? data.raised : false;
 
@@ -18,16 +16,16 @@ export class RaiseHandHandlers implements SocketHandler {
 				}
 
 				if (raised) {
-					this.deps.registry.setRaisedHand(
+					deps.registry.setRaisedHand(
 						roomId,
 						socket.participantId,
 						new Date().toISOString(),
 					);
 				} else {
-					this.deps.registry.clearRaisedHand(roomId, socket.participantId);
+					deps.registry.clearRaisedHand(roomId, socket.participantId);
 				}
 
-				this.deps.registry.emitToFullAccessParticipants(roomId, 'hand_raised', {
+				deps.registry.emitToFullAccessParticipants(roomId, 'hand_raised', {
 					participantId: socket.participantId,
 					raised,
 					timestamp: new Date().toISOString(),
@@ -42,5 +40,5 @@ export class RaiseHandHandlers implements SocketHandler {
 				callback({ success: false, error: 'Internal error' });
 			}
 		});
-	}
+	};
 }
