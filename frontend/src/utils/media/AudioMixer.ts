@@ -230,6 +230,7 @@ export class AudioMixer {
 		const outputElement = document.createElement("audio");
 		outputElement.autoplay = true;
 		outputElement.setAttribute("playsinline", "");
+		outputElement.setAttribute("data-testid", "audio-mixer-output");
 		outputElement.style.display = "none";
 		outputElement.srcObject = destination.stream;
 		document.body.appendChild(outputElement);
