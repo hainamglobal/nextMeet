@@ -26,13 +26,19 @@
 		<TransitionGroup
 			name="tile"
 			tag="div"
-			class="h-full"
+			class="h-full grid gap-2 auto-rows-fr content-start"
 			:class="[
-				mode === 'sidebar'
-					? `grid gap-2 mt-3 sm:mt-0 sm:ml-3 ${containerClass}`
-					: 'relative call-grid',
+				mode === 'sidebar' ? 'mt-3 sm:mt-0 sm:ml-3' : '',
+				mode === 'sidebar' && !isMobile
+					? gridColumns === 2
+						? 'w-72'
+						: 'w-64'
+					: '',
+				mode === 'sidebar' && isMobile ? 'max-h-[120px]' : '',
 			]"
-			:style="containerStyle"
+			:style="{
+				gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+			}"
 		>
 			<!-- Local camera tile -->
 			<ParticipantTile
@@ -45,7 +51,6 @@
 				:videoRef="setLocalVideoRef"
 				:tileCount="visibleTileCount"
 				:showReaction="pinnedTiles.length===0"
-				:style="tileStyle"
 			/>
 
 			<ParticipantTile
@@ -72,7 +77,6 @@
 				:tooltip="hiddenParticipantsTooltip"
 				:participants="displayParticipants.hidden"
 				:size="mode === 'sidebar' ? 'small' : 'medium'"
-				:style="tileStyle"
 				@click="emit('open-people-panel')"
 			/>
 		</TransitionGroup>
@@ -91,6 +95,7 @@ import { type ComputedRef, computed, inject, ref, watch } from "vue";
 import { useLayout } from "../composables/useLayout";
 import { useMeetingContext } from "../composables/useMeetingContext";
 import { usePinnedTileAnimation } from "../composables/usePinnedTileAnimation";
+import { useResponsiveGrid } from "../composables/useResponsiveGrid";
 import { useScreenShareTiles } from "../composables/useScreenShareTiles";
 import { useTileAdaptiveStreaming } from "../composables/useTileAdaptiveStreaming";
 import type { Participant } from "../utils/media/ParticipantManager";
@@ -210,7 +215,7 @@ const getScreenShareTileBindings = (shareTile: {
 		class: isPinned ? "pinned-tile" : undefined,
 		style: isPinned
 			? pinnedTileStyles.value[`screenshare-${shareTile.pinId}`]
-			: tileStyle.value,
+			: undefined,
 		pinType: "screenshare" as const,
 		pinId: shareTile.pinId,
 		labelSize: isPinned ? ("sm" as const) : undefined,
@@ -246,9 +251,7 @@ const getParticipantTileBindings = (
 		showReaction: pinnedTiles.value.length === 0,
 		style: isPinned
 			? pinnedTileStyles.value[`participant-${participant.user_id}`]
-			: participant.isVisible
-				? tileStyle.value
-				: undefined,
+			: undefined,
 	};
 };
 
@@ -290,13 +293,13 @@ const extraTileCount = computed(() => {
 	return Math.max(0, allScreenShareTiles.value.length - 1);
 });
 
+const { isMobile } = useResponsiveGrid();
+
 // ── Layout composable ─────────────────────────────────────────────────────────
 
 const {
 	mode,
-	containerStyle,
-	containerClass,
-	tileStyle,
+	gridColumns,
 	displayParticipants,
 	allParticipants,
 	visibleTileCount,
