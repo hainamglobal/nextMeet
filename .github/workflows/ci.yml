@@ -128,3 +128,24 @@ jobs:
       - name: Test
         working-directory: frontend
         run: yarn test
+
+  sfu-server:
+    runs-on: ubuntu-latest
+    name: SFU Server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "yarn"
+          cache-dependency-path: sfu-server/yarn.lock
+
+      - name: Install dependencies
+        working-directory: sfu-server
+        run: yarn install --frozen-lockfile
+
+      - name: Test
+        working-directory: sfu-server
+        run: yarn test
