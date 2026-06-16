@@ -462,7 +462,7 @@ export class SFUClient {
 		)) as SFURouterCapabilitiesResponse;
 		try {
 			const payload = resp?.rtpCapabilities || resp;
-			return JSON.parse(JSON.stringify(payload));
+			return structuredClone(payload);
 		} catch (err: unknown) {
 			console.warn("Failed to deep-clone router RTP capabilities:", err);
 			return resp?.rtpCapabilities || resp;
@@ -479,7 +479,7 @@ export class SFUClient {
 			direction,
 		})) as SFUWebRtcTransportResponse;
 		try {
-			const clean = JSON.parse(JSON.stringify(response));
+			const clean = structuredClone(response);
 			const { id, iceParameters, iceCandidates, dtlsParameters } = clean;
 			return { id, iceParameters, iceCandidates, dtlsParameters };
 		} catch (err: unknown) {
