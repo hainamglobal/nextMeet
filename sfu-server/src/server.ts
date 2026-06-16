@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import http from 'node:http';
 import express, { type Application } from 'express';
 import { Server } from 'socket.io';

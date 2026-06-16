@@ -1,5 +1,4 @@
 const { io } = require("socket.io-client");
-require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
