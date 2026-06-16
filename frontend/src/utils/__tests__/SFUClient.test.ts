@@ -1,16 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SFUClient } from "../SFUClient";
 
-const mockSignalChannel = () => ({
-	connect: vi.fn(),
+const mockSocket = vi.hoisted(() => ({
+	auth: {} as Record<string, unknown>,
+	connected: false,
+	id: "socket-id",
+	io: { opts: {} as Record<string, unknown> },
 	disconnect: vi.fn(),
 	emit: vi.fn(),
 	on: vi.fn(),
 	off: vi.fn(),
-	isConnected: vi.fn(() => false),
-	id: vi.fn(() => "socket-id"),
-	updateAuth: vi.fn(),
-});
+	once: vi.fn(),
+}));
+
+vi.mock("socket.io-client", () => ({
+	io: vi.fn(() => mockSocket),
+}));
 
 vi.mock("frappe-ui", () => ({
 	frappeRequest: vi.fn(),
@@ -20,6 +25,14 @@ import { frappeRequest } from "frappe-ui";
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	mockSocket.auth = {};
+	mockSocket.connected = false;
+	mockSocket.io.opts = {};
+	mockSocket.disconnect = vi.fn();
+	mockSocket.emit = vi.fn();
+	mockSocket.on = vi.fn();
+	mockSocket.off = vi.fn();
+	mockSocket.once = vi.fn();
 	vi.useFakeTimers();
 });
 
@@ -28,7 +41,9 @@ afterEach(() => {
 });
 
 function createClient() {
-	return new SFUClient(mockSignalChannel());
+	const client = new SFUClient();
+	client.socket = mockSocket as unknown as typeof client.socket;
+	return client;
 }
 
 describe("getSFUEndpoint", () => {
@@ -160,7 +175,7 @@ describe("sendRequest", () => {
 		const client = createClient();
 		client.connected = true;
 		const response = { success: true, data: "ok" };
-		client.signalChannel.emit = vi.fn((_event, _data, cb) => cb(response));
+		mockSocket.emit = vi.fn((_event, _data, cb) => cb(response));
 		const result = await client.sendRequest("test", { foo: 1 });
 		expect(result).toEqual(response);
 	});
@@ -168,7 +183,7 @@ describe("sendRequest", () => {
 	it("rejects when response.success is false", async () => {
 		const client = createClient();
 		client.connected = true;
-		client.signalChannel.emit = vi.fn((_event, _data, cb) =>
+		mockSocket.emit = vi.fn((_event, _data, cb) =>
 			cb({ success: false, error: "nope" }),
 		);
 		await expect(client.sendRequest("test", {})).rejects.toThrow("nope");
@@ -186,7 +201,7 @@ describe("sendEvent", () => {
 		const client = createClient();
 		client.connected = true;
 		client.sendEvent("evt", { key: "val" });
-		expect(client.signalChannel.emit).toHaveBeenCalledWith("evt", {
+		expect(client.socket!.emit).toHaveBeenCalledWith("evt", {
 			key: "val",
 		});
 	});
@@ -205,7 +220,7 @@ describe("sendChatMessage", () => {
 		const client = createClient();
 		client.connected = true;
 		client.sendChatMessage("hello");
-		expect(client.signalChannel.emit).toHaveBeenCalledWith("chat:send", {
+		expect(client.socket!.emit).toHaveBeenCalledWith("chat:send", {
 			message: "hello",
 		});
 	});
@@ -214,7 +229,7 @@ describe("sendChatMessage", () => {
 		const client = createClient();
 		client.connected = true;
 		client.sendChatMessage("hello", { clientId: "cid-123" });
-		expect(client.signalChannel.emit).toHaveBeenCalledWith("chat:send", {
+		expect(client.socket!.emit).toHaveBeenCalledWith("chat:send", {
 			message: "hello",
 			clientId: "cid-123",
 		});
@@ -226,7 +241,7 @@ describe("sendChatMessage", () => {
 		client.sendChatMessage(42 as unknown as string, {
 			clientId: 99 as unknown as string,
 		});
-		expect(client.signalChannel.emit).toHaveBeenCalledWith("chat:send", {
+		expect(client.socket!.emit).toHaveBeenCalledWith("chat:send", {
 			message: "42",
 			clientId: "99",
 		});
@@ -244,7 +259,7 @@ describe("sendReaction", () => {
 		const client = createClient();
 		client.connected = true;
 		client.sendReaction("🎉");
-		expect(client.signalChannel.emit).toHaveBeenCalledWith("reaction:send", {
+		expect(client.socket!.emit).toHaveBeenCalledWith("reaction:send", {
 			reaction: "🎉",
 		});
 	});
@@ -260,9 +275,7 @@ describe("sendRaiseHand", () => {
 	it("resolves when response.success is true", async () => {
 		const client = createClient();
 		client.connected = true;
-		client.signalChannel.emit = vi.fn((_event, _data, cb) =>
-			cb({ success: true }),
-		);
+		mockSocket.emit = vi.fn((_event, _data, cb) => cb({ success: true }));
 		await expect(client.sendRaiseHand(true)).resolves.toEqual({
 			success: true,
 		});
@@ -271,7 +284,7 @@ describe("sendRaiseHand", () => {
 	it("rejects when response.success is false", async () => {
 		const client = createClient();
 		client.connected = true;
-		client.signalChannel.emit = vi.fn((_event, _data, cb) =>
+		mockSocket.emit = vi.fn((_event, _data, cb) =>
 			cb({ success: false, error: "rate limited" }),
 		);
 		await expect(client.sendRaiseHand(true)).rejects.toThrow("rate limited");
@@ -284,7 +297,7 @@ describe("on / off event handling", () => {
 		const handler = vi.fn();
 		client.on("participant_joined", handler);
 		expect(client.eventHandlers.get("participant_joined")).toBe(handler);
-		expect(client.signalChannel.on).toHaveBeenCalledWith(
+		expect(client.socket!.on).toHaveBeenCalledWith(
 			"participant_joined",
 			handler,
 		);
@@ -296,7 +309,7 @@ describe("on / off event handling", () => {
 		client.on("participant_joined", handler);
 		client.off("participant_joined");
 		expect(client.eventHandlers.has("participant_joined")).toBe(false);
-		expect(client.signalChannel.off).toHaveBeenCalledWith(
+		expect(client.socket!.off).toHaveBeenCalledWith(
 			"participant_joined",
 			handler,
 		);
