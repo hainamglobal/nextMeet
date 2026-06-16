@@ -24,7 +24,7 @@
 
 		<!-- ── Tile strip / full grid ─────────────────────────────────────── -->
 		<TransitionGroup
-			:name="isFlipAnimating ? '' : 'tile'"
+			name="tile"
 			tag="div"
 			class="h-full"
 			:class="[
@@ -316,7 +316,7 @@ const {
 	extraTileCount,
 );
 
-const { isFlipAnimating, pinnedTileStyles } = usePinnedTileAnimation({
+const { pinnedTileStyles } = usePinnedTileAnimation({
 	container,
 	pinnedPanelsMap,
 	pinnedTiles,
