@@ -85,5 +85,8 @@ if [ "$NODE_ENV" = "development" ]; then
     yarn dev:watch
 else
     # Production mode
-    yarn start
+    set -a
+    source .env 2>/dev/null
+    set +a
+    node dist/sfu-server/src/server.js
 fi

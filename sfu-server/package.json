@@ -5,7 +5,7 @@
 	"main": "dist/sfu-server/src/server.js",
 	"scripts": {
 		"build": "tsc",
-		"start": "node --env-file=.env dist/sfu-server/src/server.js",
+		"start": "node dist/sfu-server/src/server.js",
 		"dev": "node --env-file=.env node_modules/.bin/ts-node src/server.ts",
 		"dev:watch": "nodemon",
 		"spawn-fake": "node --env-file=.env scripts/spawn-fake-users.js",
