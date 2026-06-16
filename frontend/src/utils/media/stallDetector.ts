@@ -164,6 +164,13 @@ export class StallDetector {
 	private shouldRecover(st: ConsumerState, now: number): boolean {
 		if (
 			st.lastRecoveredAt !== null &&
+			st.stallStartedAt !== null &&
+			st.lastRecoveredAt >= st.stallStartedAt
+		) {
+			return false;
+		}
+		if (
+			st.lastRecoveredAt !== null &&
 			now - st.lastRecoveredAt < this.recoveryCooldownMs
 		) {
 			return false;
