@@ -69,14 +69,11 @@ export function useLayout(
 	layoutDeps: LayoutDeps,
 	extraTiles: Ref<number>,
 ): UseLayoutReturn {
-	const { maxColumns, sidebarMaxColumns, windowWidth, BREAKPOINTS } =
-		useResponsiveGrid();
+	const { isMobile, maxColumns, sidebarMaxColumns } = useResponsiveGrid();
 
 	const mode = computed<"grid" | "sidebar">(() =>
 		pinnedTiles.value.length > 0 ? "sidebar" : "grid",
 	);
-
-	const isMobile = computed(() => windowWidth.value < BREAKPOINTS.md);
 
 	// ── Participants visible in the tile strip ────────────────────────────────
 	// All participants stay in the list — the pinned one is positioned absolutely
