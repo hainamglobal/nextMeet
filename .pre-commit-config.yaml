@@ -58,7 +58,8 @@ repos:
         exclude: |
           (?x)^(
               .*node_modules.*|
-              sfu-server/dist/.*
+              sfu-server/dist/.*|
+              sfu-server/tsconfig\.json
           )$
 
   - repo: local

@@ -7,6 +7,13 @@ on:
     paths:
       - "sfu-server/**"
       - "types/**"
+    paths-ignore:
+      - "sfu-server/src/**/__tests__/**"
+      - "sfu-server/src/**/*.test.ts"
+      - "sfu-server/**/*.md"
+      - "sfu-server/.vscode/**"
+      - "sfu-server/.env*"
+      - "sfu-server/.venv/**"
   workflow_dispatch:
     inputs:
       tag:
