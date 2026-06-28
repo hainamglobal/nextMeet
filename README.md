@@ -14,8 +14,8 @@
 
 <br>
 
-> [!WARNING]  
-> Frappe Meet is in beta and there might be few bugs!
+> [!IMPORTANT]  
+> Frappe Meet is archived and is now part of [Frappe Suite](https://github.com/frappe/suite).
 
 ## Frappe Meet
 
