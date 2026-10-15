@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_voms",
+  "meeting_title",
   "meeting_type",
   "allow_guest",
   "host_only_chat",
@@ -19,6 +20,12 @@
   {
    "fieldname": "section_break_voms",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "meeting_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Meeting Title"
   },
   {
    "default": "open",

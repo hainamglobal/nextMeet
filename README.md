@@ -114,6 +114,22 @@ Deploying Frappe Meet on your own server is quick and easy using our automated D
 
 AGPL-3.0
 
+## NextGRP Meet integration
+
+The integration implementation is organized into API, service, client, and config layers. The MTP app exposes a thin local route that forwards to `meet.api.integration`; this avoids installing the full standalone Meet app on the NextGRP site. Configure the remote backend credentials in the NextGRP site's `site_config.json`:
+
+```json
+{
+  "meet_backend_url": "https://meet.nextgrp.vn",
+  "meet_api_key": "<api-key>",
+  "meet_api_secret": "<api-secret>"
+}
+```
+
+The API key and secret are used only by the server-side client over HTTPS. The credential owner needs the `Meet User` role and access to `Sae Meeting`; remote calls execute as that account.
+
+This integration adds the optional `meeting_title` field to `Sae Meeting`. After deploying the Meet app update to `meet.nextgrp.vn`, run `bench --site <meet-site> migrate` there before using MTP's meeting list and create form.
+
 <br>
 <br>
 <div align="center">

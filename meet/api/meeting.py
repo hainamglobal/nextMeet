@@ -54,8 +54,13 @@ def _get_codec_strategy() -> str:
 
 @frappe.whitelist()
 @rate_limit(limit=10, seconds=60 * 60)
-def create(meeting_type: str = "open", allow_guest: bool = True) -> str:
+def create(
+	meeting_title: str | None = None,
+	meeting_type: str = "open",
+	allow_guest: bool = True,
+) -> str:
 	"""Create a new meeting with specified type"""
+	meeting_title = (meeting_title or "").strip() or _("Meeting")
 	global_settings = frappe.get_cached_doc("Sae Settings")
 	if not global_settings.allow_guest:
 		allow_guest = False
@@ -63,6 +68,7 @@ def create(meeting_type: str = "open", allow_guest: bool = True) -> str:
 	meeting: SaeMeeting = frappe.get_doc(
 		{
 			"doctype": "Sae Meeting",
+			"meeting_title": meeting_title,
 			"meeting_type": meeting_type,
 			"allow_guest": allow_guest,
 		}
