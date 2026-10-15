@@ -1,0 +1,70 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user_email",
+  "user_name",
+  "host_name",
+  "meeting",
+  "joined_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "user_email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "User Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "User Name"
+  },
+  {
+   "fieldname": "host_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Host Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "meeting",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Meeting",
+   "options": "Sae Meeting",
+   "reqd": 1
+  },
+  {
+   "default": "Now",
+   "fieldname": "joined_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Joined At",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "Meet",
+ "name": "User Domain",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Meet User"
+  }
+ ],
+ "sort_field": "joined_at",
+ "sort_order": "DESC"
+}

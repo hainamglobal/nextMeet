@@ -58,6 +58,7 @@ def create(
 	meeting_title: str | None = None,
 	meeting_type: str = "open",
 	allow_guest: bool = True,
+	host_name: str | None = None,
 ) -> str:
 	"""Create a new meeting with specified type"""
 	meeting_title = (meeting_title or "").strip() or _("Meeting")
@@ -69,6 +70,7 @@ def create(
 		{
 			"doctype": "Sae Meeting",
 			"meeting_title": meeting_title,
+			"host_name": (host_name or frappe.local.site).strip().lower().rstrip("."),
 			"meeting_type": meeting_type,
 			"allow_guest": allow_guest,
 		}

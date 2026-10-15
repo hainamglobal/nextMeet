@@ -128,7 +128,7 @@ The integration implementation is organized into API, service, client, and confi
 
 The API key and secret are used only by the server-side client over HTTPS. The credential owner needs the `Meet User` role and access to `Sae Meeting`; remote calls execute as that account.
 
-This integration adds the optional `meeting_title` field to `Sae Meeting`. After deploying the Meet app update to `meet.nextgrp.vn`, run `bench --site <meet-site> migrate` there before using MTP's meeting list and create form.
+This integration adds `meeting_title` and `host_name` to `Sae Meeting`, a `User Domain` DocType that records MTP room openings, and `Sae Meeting Chat Message` for persistent room chat. MTP-created meetings are tagged with their source site and lists are filtered by that host. Chat messages written before the persistence update cannot be recovered; new messages are retained and loaded when members rejoin. After deploying the Meet app update to `meet.nextgrp.vn`, run `bench --site <meet-site> migrate` there before using MTP's meeting list, create, join, and chat-history flows.
 
 <br>
 <br>

@@ -4,7 +4,7 @@ import frappe
 from frappe import _
 
 from meet.client.meet_backend_client import MeetBackendClient, MeetBackendError
-from meet.config.backend import get_backend_settings
+from meet.config.backend import get_backend_settings, get_site_host_name
 
 
 ALLOWED_METHODS = {
@@ -21,6 +21,7 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.reject_join_request",
 	"meet.api.meeting.promote_to_cohost",
 	"meet.api.meeting.check_meeting_access",
+	"meet.api.integration.record_user_domain",
 }
 
 
@@ -35,12 +36,28 @@ def request(method_name, params):
 	if method_name == "run_doc_method" and params.get("method") != "update_settings":
 		frappe.throw(_("Meet document method is not allowed"), frappe.PermissionError)
 
+	params = dict(params)
+	site_host_name = get_site_host_name()
+	if method_name == "meet.api.meeting.create":
+		params["host_name"] = site_host_name
+	elif method_name == "frappe.client.get_list" and params.get("doctype") == "Sae Meeting":
+		filters = params.get("filters") or {}
+		if isinstance(filters, dict):
+			filters = {**filters, "host_name": site_host_name}
+		else:
+			filters = [*filters, ["Sae Meeting", "host_name", "=", site_host_name]]
+		params["filters"] = filters
+
 	client = MeetBackendClient(get_backend_settings())
 	try:
-		return client.call(method_name, params)
+		result = client.call(method_name, params)
 	except MeetBackendError as exc:
 		frappe.log_error(str(exc), "Meet Integration")
 		frappe.throw(_(str(exc)), frappe.ValidationError)
+
+	if method_name == "frappe.client.get" and result.get("host_name") != site_host_name:
+		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
+	return result
 
 
 def health():
@@ -50,3 +67,16 @@ def health():
 		{"doctype": "Sae Meeting", "fields": ["name"], "limit_page_length": 1},
 	)
 	return {"connected": True, "server_url": settings["base_url"]}
+
+
+def register_user_domain(meeting_id, user_email, user_name):
+	site_host_name = get_site_host_name()
+	return request(
+		"meet.api.integration.record_user_domain",
+		{
+			"meeting_id": meeting_id,
+			"user_email": user_email,
+			"user_name": user_name,
+			"host_name": site_host_name,
+		},
+	)

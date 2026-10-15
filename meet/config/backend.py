@@ -27,3 +27,10 @@ def get_backend_settings():
 		"api_key": api_key,
 		"api_secret": api_secret,
 	}
+
+
+def get_site_host_name():
+	configured_host = frappe.conf.get("host_name") or frappe.local.site
+	url = configured_host if "://" in configured_host else f"//{configured_host}"
+	host_name = urlsplit(url).hostname
+	return (host_name or frappe.local.site).strip().lower().rstrip(".")

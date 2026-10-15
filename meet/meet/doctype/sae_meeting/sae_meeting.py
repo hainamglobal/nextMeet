@@ -27,6 +27,7 @@ class SaeMeeting(Document):
 		from meet.meet.doctype.sae_meeting_user.sae_meeting_user import SaeMeetingUser
 
 		meeting_title: DF.Data
+		host_name: DF.Data
 		allow_guest: DF.Check
 		banned_users: DF.Table[SaeMeetingUser]
 		co_hosts: DF.Table[SaeMeetingUser]

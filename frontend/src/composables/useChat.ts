@@ -1,4 +1,4 @@
-import { toast } from "frappe-ui";
+import { frappeRequest, toast } from "frappe-ui";
 import audioNotificationManager from "../utils/audioNotifications";
 import type { SFUClient } from "../utils/SFUClient";
 import type { ChatMessage, ChatStore } from "./useChatStore";
@@ -6,7 +6,8 @@ import type { CurrentUser } from "./useCurrentUser";
 
 interface ChatAPI {
 	setupChatEvents: (notificationQueue: unknown) => void;
-	onSendChat: (text: string) => void;
+	loadHistory: () => Promise<void>;
+	onSendChat: (text: string) => Promise<void>;
 	toggleRestriction: (enabled: boolean) => void;
 }
 
@@ -14,8 +15,29 @@ export function useChat(deps: {
 	chatStore: ChatStore;
 	currentUser: CurrentUser;
 	sfuClient: SFUClient;
+	meetingId: string;
 }): ChatAPI {
-	const { chatStore, currentUser, sfuClient } = deps;
+	const { chatStore, currentUser, sfuClient, meetingId } = deps;
+
+	const loadHistory = async () => {
+		const guestId = currentUser.currentUser.value?.user_id?.startsWith("guest_")
+			? sessionStorage.getItem("guest_id") || undefined
+			: undefined;
+		const rows = (await frappeRequest({
+			url: "meet.api.chat.get_history",
+			params: { meeting_id: meetingId, guest_id: guestId, limit: 200 },
+		})) as Array<Record<string, unknown>>;
+
+		chatStore.setMessages(
+			(rows || []).map((row) => ({
+				id: String(row.id),
+				user_id: String(row.user_id || ""),
+				user_name: String(row.user_name || row.user_id || ""),
+				message: String(row.message || ""),
+				timestamp: String(row.timestamp || ""),
+			})),
+		);
+	};
 
 	const setupChatEvents = (notificationQueue: unknown) => {
 		sfuClient.on("chat:message", (data: Record<string, unknown>) => {
@@ -50,11 +72,14 @@ export function useChat(deps: {
 				audioNotificationManager.playChatNotification();
 			}
 		});
-		sfuClient.on("chat:restriction_updated", (data: any) => {
-			chatStore.hostOnlyChat = data.enabled;
-		});
+		sfuClient.on(
+			"chat:restriction_updated",
+			(data: Record<string, unknown>) => {
+				chatStore.hostOnlyChat = Boolean(data.enabled);
+			},
+		);
 
-		sfuClient.on("sfu_error", (data: any) => {
+		sfuClient.on("sfu_error", (data: Record<string, unknown>) => {
 			if (data?.code === "HOST_ONLY_CHAT") {
 				toast.error("The host has restricted chat to hosts and co-hosts only.");
 				chatStore.hostOnlyChat = true;
@@ -68,33 +93,50 @@ export function useChat(deps: {
 		}
 	};
 
-	const onSendChat = (text: string) => {
+	const onSendChat = async (text: string) => {
+		const messageText = text.trim();
+		if (!messageText) return;
+
+		const current = currentUser.currentUser.value;
+		const guestId = current?.user_id?.startsWith("guest_")
+			? sessionStorage.getItem("guest_id") || undefined
+			: undefined;
+		const clientId =
+			globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+
 		try {
-			const message: ChatMessage = {
-				id: Date.now() + Math.random(),
-				user_id: currentUser.currentUser.value?.user_id as string,
-				user_name:
-					(currentUser.currentUser.value?.full_name as string) ||
-					(currentUser.currentUser.value?.name as string) ||
-					(currentUser.currentUser.value?.user_id as string),
-				message: text,
-				timestamp: new Date().toISOString(),
-			};
-			chatStore.addMessage(message);
+			const saved = (await frappeRequest({
+				url: "meet.api.chat.send_message",
+				params: {
+					meeting_id: meetingId,
+					message: messageText,
+					guest_id: guestId,
+					client_id: clientId,
+				},
+			})) as Record<string, unknown>;
+
+			chatStore.addMessage({
+				id: String(saved.id),
+				user_id: String(saved.user_id || current?.user_id || ""),
+				user_name: String(
+					saved.user_name || current?.full_name || current?.name || "",
+				),
+				message: String(saved.message || messageText),
+				timestamp: String(saved.timestamp || new Date().toISOString()),
+			});
 
 			if (sfuClient.isConnected()) {
-				sfuClient.sendChatMessage(text, {
-					clientId: currentUser.currentUser.value?.user_id,
-				});
+				sfuClient.sendChatMessage(messageText, { clientId });
 			}
 		} catch (error) {
-			console.error("Failed to send chat message:", error);
-			toast.error("Failed to send message");
+			console.error("Failed to save chat message:", error);
+			toast.error("Could not save this message");
 		}
 	};
 
 	return {
 		setupChatEvents,
+		loadHistory,
 		toggleRestriction,
 		onSendChat,
 	};

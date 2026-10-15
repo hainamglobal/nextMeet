@@ -395,7 +395,19 @@ const chat = useChat({
 	chatStore,
 	currentUser,
 	sfuClient: sfuConnection.sfuClient,
+	meetingId: meetingId.value,
 });
+
+watch(
+	() => connectionState.isSetupComplete,
+	(isReady) => {
+		if (isReady) {
+			void chat.loadHistory().catch((error) => {
+				console.error("Failed to load meeting chat history:", error);
+			});
+		}
+	},
+);
 
 // --- Reactions ---
 const reactions = useReactions({

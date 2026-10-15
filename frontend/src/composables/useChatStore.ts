@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 
 export interface ChatMessage {
-	id: number;
+	id: string | number;
 	user_id: string;
 	user_name: string;
 	message: string;
@@ -17,6 +17,7 @@ export interface ChatStore {
 	hostOnlyChat: boolean;
 	markAsRead: () => void;
 	addMessage: (message: ChatMessage) => void;
+	setMessages: (messages: ChatMessage[]) => void;
 	$reset: () => void;
 }
 
@@ -44,6 +45,11 @@ export const useChatStore = defineStore("chat", () => {
 		chatMessages.value.push(message);
 	}
 
+	function setMessages(messages: ChatMessage[]) {
+		chatMessages.value = messages;
+		hasUnreadMessages.value = false;
+	}
+
 	function $reset() {
 		isChatOpen.value = false;
 		chatMessages.value = [];
@@ -59,6 +65,7 @@ export const useChatStore = defineStore("chat", () => {
 		hostOnlyChat,
 		markAsRead,
 		addMessage,
+		setMessages,
 		$reset,
 	};
 });
