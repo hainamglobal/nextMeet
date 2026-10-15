@@ -2,6 +2,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from meet.client.meet_backend_client import MeetBackendClient, MeetBackendError
+from meet.utils.user import validate_guest_name
 
 
 class TestMeetBackendClient(TestCase):
@@ -38,3 +39,8 @@ class TestMeetBackendClient(TestCase):
 
 		with self.assertRaisesRegex(MeetBackendError, "HTTP 403"):
 			self.client.call("meet.api.meeting.create", {})
+
+
+class TestGuestNameValidation(TestCase):
+	def test_accepts_vietnamese_display_names(self):
+		self.assertEqual(validate_guest_name("Nguyễn Văn An"), (True, None))

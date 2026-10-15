@@ -183,9 +183,12 @@ const emit = defineEmits<{
 const guestName = ref("");
 
 onMounted(() => {
+	const nextgrpName = new URLSearchParams(window.location.hash.slice(1))
+		.get("nextgrp_name")
+		?.trim();
 	const savedGuestName = localStorage.getItem("guest_name");
-	if (savedGuestName && !session.isLoggedIn) {
-		guestName.value = savedGuestName;
+	if (!session.isLoggedIn) {
+		guestName.value = nextgrpName || savedGuestName || "";
 	}
 });
 const guestNameInputRef = ref<VideoElement | null>(null);

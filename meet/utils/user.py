@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 
-import re
+import unicodedata
 
 import frappe
 from frappe.core.doctype.user.user import User
@@ -124,7 +124,7 @@ def validate_guest_name(guest_name: str) -> tuple[bool, str | None]:
 	if len(guest_name) > 50:
 		return False, "Guest name must be at most 50 characters"
 
-	if not re.match(r"^[a-zA-Z0-9\s'\-]+$", guest_name):
+	if any(unicodedata.category(char).startswith("C") for char in guest_name):
 		return False, "Guest name contains invalid characters"
 
 	return True, None
