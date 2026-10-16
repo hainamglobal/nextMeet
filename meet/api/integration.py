@@ -154,18 +154,20 @@ def configure_presence_callback(host_name, callback_url, callback_secret):
 		frappe.throw(_("Callback host must match the registered site"), frappe.ValidationError)
 	if not callback_url.startswith(("https://", "http://localhost", "http://127.0.0.1")):
 		frappe.throw(_("Presence callback must use HTTPS"), frappe.ValidationError)
-	doc = frappe.get_doc(
-		{
-			"doctype": "Meet Domain",
-			"host_name": host_name,
-			"callback_url": callback_url,
-			"callback_secret": callback_secret,
-		}
-	)
 	if frappe.db.exists("Meet Domain", host_name):
-		doc.name = host_name
+		doc = frappe.get_doc("Meet Domain", host_name)
+		doc.callback_url = callback_url
+		doc.callback_secret = callback_secret
 		doc.save(ignore_permissions=True)
 	else:
+		doc = frappe.get_doc(
+			{
+				"doctype": "Meet Domain",
+				"host_name": host_name,
+				"callback_url": callback_url,
+				"callback_secret": callback_secret,
+			}
+		)
 		doc.insert(ignore_permissions=True)
 	return {"registered": True, "host_name": host_name}
 
