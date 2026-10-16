@@ -7,6 +7,8 @@
  "field_order": [
   "section_break_voms",
   "meeting_title",
+  "created_by_name",
+  "created_by_email",
   "host_name",
   "meeting_type",
   "allow_guest",
@@ -27,6 +29,19 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Meeting Title"
+  },
+  {
+   "fieldname": "created_by_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "NextGRP Creator",
+   "read_only": 1
+  },
+  {
+   "fieldname": "created_by_email",
+   "fieldtype": "Data",
+   "label": "NextGRP Creator Email",
+   "read_only": 1
   },
   {
    "fieldname": "host_name",

@@ -27,6 +27,8 @@ class SaeMeeting(Document):
 		from meet.meet.doctype.sae_meeting_user.sae_meeting_user import SaeMeetingUser
 
 		meeting_title: DF.Data
+		created_by_name: DF.Data
+		created_by_email: DF.Data
 		host_name: DF.Data
 		allow_guest: DF.Check
 		banned_users: DF.Table[SaeMeetingUser]
@@ -134,7 +136,9 @@ class SaeMeeting(Document):
 		if not user:
 			user = frappe.session.user
 
-		if self.meeting_type == "restricted" and user != self.owner:
+		creator_email = (self.created_by_email or "").strip().lower()
+		is_creator = creator_email and user.strip().lower() == creator_email
+		if self.meeting_type == "restricted" and user != self.owner and not is_creator:
 			if not self.is_user_approved(user):
 				self.add_to_waiting_room(user)
 				self.save()

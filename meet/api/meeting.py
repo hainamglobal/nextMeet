@@ -59,6 +59,8 @@ def create(
 	meeting_type: str = "open",
 	allow_guest: bool = True,
 	host_name: str | None = None,
+	created_by_name: str | None = None,
+	created_by_email: str | None = None,
 ) -> str:
 	"""Create a new meeting with specified type"""
 	meeting_title = (meeting_title or "").strip() or _("Meeting")
@@ -70,6 +72,8 @@ def create(
 		{
 			"doctype": "Sae Meeting",
 			"meeting_title": meeting_title,
+			"created_by_name": (created_by_name or "").strip()[:140],
+			"created_by_email": (created_by_email or "").strip().lower()[:140],
 			"host_name": (host_name or frappe.local.site).strip().lower().rstrip("."),
 			"meeting_type": meeting_type,
 			"allow_guest": allow_guest,
@@ -173,6 +177,12 @@ def join_meeting(meeting_id: str) -> dict:
 					},
 				}
 			elif result.get("status") == "joined":
+				from meet.api.integration import record_meeting_participant
+
+				record_meeting_participant(
+					meeting,
+					frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user,
+				)
 				is_host = meeting.owner == frappe.session.user
 				is_cohost = meeting.is_host_or_cohost(frappe.session.user) and not is_host
 				return {
@@ -281,7 +291,7 @@ def refresh_sfu_token(meeting_id: str) -> dict:
 
 
 @frappe.whitelist()
-def get_sfu_presence_preview_token(meeting_id: str) -> dict:
+def get_sfu_presence_preview_token(meeting_id: str, expected_host_name: str | None = None) -> dict:
 	"""Get a short-lived SFU token scoped for presence preview only.
 
 	This is used by the meeting preview page to fetch live participants
@@ -295,6 +305,8 @@ def get_sfu_presence_preview_token(meeting_id: str) -> dict:
 
 	if meeting.is_user_banned(frappe.session.user):
 		frappe.throw(_("You are banned from this meeting"), frappe.PermissionError)
+	if expected_host_name and (meeting.host_name or "").strip().lower().rstrip(".") != expected_host_name.strip().lower().rstrip("."):
+		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
 
 	if not meeting.can_join(frappe.session.user):
 		frappe.throw(_("Access denied"), frappe.PermissionError)
@@ -322,7 +334,12 @@ def get_sfu_presence_preview_token(meeting_id: str) -> dict:
 
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=10, seconds=60 * 60)
-def join_meeting_as_guest(meeting_id: str, guest_name: str, guest_id: str | None = None) -> dict:
+def join_meeting_as_guest(
+	meeting_id: str,
+	guest_name: str,
+	guest_id: str | None = None,
+	domain_entry: str | None = None,
+) -> dict:
 	"""
 	Allow guest users to join a meeting without authentication.
 	Generates a guest session and JWT token for SFU access.
@@ -366,9 +383,35 @@ def join_meeting_as_guest(meeting_id: str, guest_name: str, guest_id: str | None
 		frappe.throw(_("You are banned from this meeting"))
 
 	sfu_config = get_sfu_config()
+	domain_email = None
+	if domain_entry:
+		entry = frappe.db.get_value(
+			"User Domain",
+			domain_entry,
+			["meeting", "user_email", "user_name", "joined_at"],
+			as_dict=True,
+		)
+		if (
+			entry
+			and entry.meeting == meeting_id
+			and entry.user_name == guest_name_clean
+			and entry.joined_at
+			and (frappe.utils.now_datetime() - entry.joined_at).total_seconds() <= 600
+		):
+			domain_email = (entry.user_email or "").strip().lower()
+	is_creator = bool(
+		domain_email
+		and meeting.created_by_email
+		and domain_email == meeting.created_by_email.strip().lower()
+	)
 
 	if meeting.meeting_type == "restricted":
-		if meeting.is_user_approved(guest_id):
+		if meeting.is_user_approved(guest_id) or is_creator:
+			if is_creator and guest_id not in meeting.get_members():
+				meeting.add_guest_to_members(guest_id)
+			from meet.api.integration import record_meeting_guest
+
+			record_meeting_guest(meeting, guest_name_clean)
 			auth_token = _generate_sfu_token(
 				user_id=guest_id,
 				meeting_id=meeting_id,
@@ -411,6 +454,9 @@ def join_meeting_as_guest(meeting_id: str, guest_name: str, guest_id: str | None
 	)
 
 	meeting.add_guest_to_members(guest_id)
+	from meet.api.integration import record_meeting_guest
+
+	record_meeting_guest(meeting, guest_name_clean)
 
 	return {
 		"status": "joined",
@@ -450,6 +496,9 @@ def get_approved_guest_connection_details(meeting_id: str, guest_id: str) -> dic
 	sfu_config = get_sfu_config()
 
 	guest_name = session_data.get("guest_name", f"Guest-{guest_id[:8]}")
+	from meet.api.integration import record_meeting_guest
+
+	record_meeting_guest(meeting, guest_name)
 
 	auth_token = _generate_sfu_token(
 		user_id=guest_id,

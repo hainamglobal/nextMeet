@@ -42,6 +42,24 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			get_sfu_connection_details(self.meeting.name)
 
+	def test_restricted_meeting_creator_joins_without_approval(self):
+		self.meeting.created_by_email = self.member_email
+		self.meeting.save(ignore_permissions=True)
+
+		result = self.meeting.join(self.member_email)
+
+		self.assertEqual(result["status"], "joined")
+		self.assertIn(self.member_email, self.meeting.get_members())
+
+	def test_restricted_meeting_other_user_still_waits_for_approval(self):
+		self.meeting.created_by_email = self.member_email
+		self.meeting.save(ignore_permissions=True)
+
+		result = self.meeting.join(self.outsider_email)
+
+		self.assertEqual(result["status"], "waiting_for_approval")
+		self.assertNotIn(self.outsider_email, self.meeting.get_members())
+
 	def test_sfu_token_includes_site_claim(self):
 		"""The SFU JWT must carry the source site so the SFU can namespace rooms
 		across multiple frappe sites sharing one SFU instance."""

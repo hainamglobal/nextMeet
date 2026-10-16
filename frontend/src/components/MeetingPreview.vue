@@ -181,11 +181,12 @@ const emit = defineEmits<{
 }>();
 
 const guestName = ref("");
+const nextgrpDomainEntry = ref("");
 
 onMounted(() => {
-	const nextgrpName = new URLSearchParams(window.location.hash.slice(1))
-		.get("nextgrp_name")
-		?.trim();
+	const joinContext = new URLSearchParams(window.location.hash.slice(1));
+	const nextgrpName = joinContext.get("nextgrp_name")?.trim();
+	nextgrpDomainEntry.value = joinContext.get("nextgrp_entry")?.trim() || "";
 	const savedGuestName = localStorage.getItem("guest_name");
 	if (!session.isLoggedIn) {
 		guestName.value = nextgrpName || savedGuestName || "";
@@ -199,6 +200,7 @@ const joinGuestAPI = createResource({
 		return {
 			meeting_id: props.meetingId,
 			guest_name: guestName.value.trim(),
+			domain_entry: nextgrpDomainEntry.value || undefined,
 		};
 	},
 });
