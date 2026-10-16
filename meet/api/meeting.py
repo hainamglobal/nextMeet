@@ -6,7 +6,6 @@ import time
 import hashlib
 import hmac
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit, urlunsplit
 
 import frappe
 import jwt
@@ -15,7 +14,7 @@ from frappe.utils import get_url
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
-from meet.utils.sfu_config import get_sfu_config
+from meet.utils.sfu_config import get_sfu_config, get_sfu_presence_url
 from meet.utils.user import (
 	get_guest_session,
 	get_user_info,
@@ -386,13 +385,7 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 		expires_in=30,
 		meeting_ids=meeting_ids,
 	)
-	parsed_url = urlsplit(sfu_config["sfu_server_url"].rstrip("/"))
-	if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
-		frappe.throw(_("Invalid SFU server URL"), frappe.ValidationError)
-	if parsed_url.scheme == "http" and parsed_url.port is None:
-		netloc = f"{parsed_url.hostname}:{sfu_config['sfu_server_port']}"
-		parsed_url = parsed_url._replace(netloc=netloc)
-	sfu_endpoint = urlunsplit(parsed_url).rstrip("/") + "/internal/presence"
+	sfu_endpoint = get_sfu_presence_url()
 
 	try:
 		response = requests.post(
