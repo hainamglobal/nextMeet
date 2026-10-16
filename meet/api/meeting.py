@@ -410,9 +410,19 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 				meeting_id: max(0, int(counts.get(meeting_id, 0))) for meeting_id in meeting_ids
 			},
 		}
-	except (requests.RequestException, ValueError, TypeError) as exc:
+	except requests.Timeout as exc:
 		frappe.log_error(str(exc), "Meet SFU Presence")
-		return {"available": False, "counts": {}}
+		return {"available": False, "counts": {}, "reason": "Meet cannot reach the SFU within 3 seconds"}
+	except requests.HTTPError as exc:
+		status = exc.response.status_code if exc.response is not None else "unknown"
+		frappe.log_error(str(exc), "Meet SFU Presence")
+		return {"available": False, "counts": {}, "reason": f"SFU returned HTTP {status}"}
+	except requests.RequestException as exc:
+		frappe.log_error(str(exc), "Meet SFU Presence")
+		return {"available": False, "counts": {}, "reason": "Meet could not connect to the SFU"}
+	except (ValueError, TypeError) as exc:
+		frappe.log_error(str(exc), "Meet SFU Presence")
+		return {"available": False, "counts": {}, "reason": "SFU returned an invalid presence response"}
 
 
 @frappe.whitelist(allow_guest=True)
