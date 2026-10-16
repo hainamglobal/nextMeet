@@ -404,17 +404,17 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 			},
 		}
 	except requests.Timeout as exc:
-		frappe.log_error(str(exc), "Meet SFU Presence")
+		frappe.log_error("Meet SFU Presence", str(exc))
 		return {"available": False, "counts": {}, "reason": "Meet cannot reach the SFU within 3 seconds"}
 	except requests.HTTPError as exc:
 		status = exc.response.status_code if exc.response is not None else "unknown"
-		frappe.log_error(str(exc), "Meet SFU Presence")
+		frappe.log_error("Meet SFU Presence", str(exc))
 		return {"available": False, "counts": {}, "reason": f"SFU returned HTTP {status}"}
 	except requests.RequestException as exc:
-		frappe.log_error(str(exc), "Meet SFU Presence")
+		frappe.log_error("Meet SFU Presence", str(exc))
 		return {"available": False, "counts": {}, "reason": "Meet could not connect to the SFU"}
 	except (ValueError, TypeError) as exc:
-		frappe.log_error(str(exc), "Meet SFU Presence")
+		frappe.log_error("Meet SFU Presence", str(exc))
 		return {"available": False, "counts": {}, "reason": "SFU returned an invalid presence response"}
 
 
@@ -475,7 +475,7 @@ def sfu_presence_event():
 		response.raise_for_status()
 		return {"relayed": True}
 	except requests.RequestException as exc:
-		frappe.log_error(str(exc), "Meet Presence Relay")
+		frappe.log_error("Meet Presence Relay", str(exc))
 		return {"relayed": False}
 
 

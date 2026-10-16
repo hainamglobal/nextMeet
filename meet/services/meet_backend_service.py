@@ -58,7 +58,7 @@ def request(method_name, params):
 	try:
 		result = client.call(method_name, params)
 	except MeetBackendError as exc:
-		frappe.log_error(str(exc), "Meet Integration")
+		frappe.log_error("Meet Integration", str(exc))
 		frappe.throw(_(str(exc)), frappe.ValidationError)
 
 	if method_name == "frappe.client.get" and result.get("host_name") != site_host_name:
@@ -103,5 +103,5 @@ def configure_presence_callback(host_name, callback_url, callback_secret):
 			},
 		)
 	except MeetBackendError as exc:
-		frappe.log_error(str(exc), "Meet Presence Registration")
+		frappe.log_error("Meet Presence Registration", str(exc))
 		frappe.throw(_("Could not register the MTP presence callback"), frappe.ValidationError)
