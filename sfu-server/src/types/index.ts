@@ -226,6 +226,8 @@ export interface SocketData {
 	userId: string;
 	userName: string;
 	meetingId: string;
+	presenceCallbackUrl?: string;
+	presenceHostName?: string;
 	site?: string;
 	isHost: boolean;
 	isGuest?: boolean;
@@ -397,6 +399,8 @@ export interface JWTPayload {
 	exp?: number;
 	iat?: number;
 	site?: string;
+	presence_callback_url?: string;
+	presence_host_name?: string;
 }
 
 // Server types
@@ -427,6 +431,8 @@ declare module 'socket.io' {
 		currentToken?: string;
 		tokenExpiresAt?: number;
 		tokenExpiryTimer?: NodeJS.Timeout;
+		presenceCallbackUrl?: string;
+		presenceHostName?: string;
 		scope?: SFUScope;
 	}
 }

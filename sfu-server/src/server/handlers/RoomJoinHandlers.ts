@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io';
 import type { UserData } from '../../types';
 import { loggers } from '../../utils/logger';
+import { publishPresence } from '../PresenceWebhook';
 import type { HandlerDeps } from './Handler';
 import { getRoomId, isRealParticipant } from './utils';
 
@@ -42,6 +43,14 @@ export function registerRoomJoinHandlers(deps: HandlerDeps) {
 			if (socket.scope === 'full') {
 				deps.registry.addFullAccessSocket(scopedRoomId, socket.id);
 				deps.mediasoup.addPeer(scopedRoomId, participantId, userData);
+				void publishPresence(
+					deps.mediasoup,
+					scopedRoomId,
+					roomId,
+					socket.site,
+					socket.presenceHostName,
+					socket.presenceCallbackUrl,
+				);
 
 				if (isRealParticipant(userData.userId)) {
 					deps.registry.emitParticipantEvent(
@@ -118,6 +127,14 @@ export function registerRoomJoinHandlers(deps: HandlerDeps) {
 			if (roomId && participantId) {
 				try {
 					await deps.mediasoup.removePeer(roomId, participantId);
+					void publishPresence(
+						deps.mediasoup,
+						roomId,
+						socket.meetingId,
+						socket.site,
+						socket.presenceHostName,
+						socket.presenceCallbackUrl,
+					);
 
 					if (isRealParticipant(participantId)) {
 						socket

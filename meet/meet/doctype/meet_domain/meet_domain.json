@@ -1,0 +1,15 @@
+{
+ "actions": [],
+ "autoname": "field:host_name",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["host_name", "callback_url", "callback_secret"],
+ "fields": [
+  {"fieldname": "host_name", "fieldtype": "Data", "label": "Host Name", "reqd": 1, "unique": 1},
+  {"fieldname": "callback_url", "fieldtype": "Data", "label": "Presence Callback URL", "reqd": 1},
+  {"fieldname": "callback_secret", "fieldtype": "Data", "label": "Presence Callback Secret", "reqd": 1, "hidden": 1, "read_only": 1}
+ ],
+ "module": "Meet",
+ "name": "Meet Domain",
+ "permissions": [{"create": 1, "read": 1, "write": 1, "delete": 1, "role": "System Manager"}]
+}

@@ -3,10 +3,15 @@
 
 import secrets
 import time
+import hashlib
+import hmac
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit, urlunsplit
 
 import frappe
 import jwt
+import requests
+from frappe.utils import get_url
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
@@ -45,6 +50,13 @@ def _generate_sfu_token(
 		"iat": now,
 		**extra,
 	}
+	if scope == "full":
+		payload["presence_callback_url"] = get_url(
+			"/api/method/meet.api.meeting.sfu_presence_event"
+		)
+		payload["presence_host_name"] = frappe.db.get_value(
+			"Sae Meeting", meeting_id, "host_name"
+		) or frappe.local.site
 	return jwt.encode(payload, secret, algorithm="HS256")
 
 
@@ -330,6 +342,138 @@ def get_sfu_presence_preview_token(meeting_id: str, expected_host_name: str | No
 		"auth_token": auth_token,
 		"expires_in": expiry_seconds,
 	}
+
+
+@frappe.whitelist()
+@rate_limit(limit=30, seconds=60)
+def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> dict:
+	"""Return live SFU participant counts for meetings owned by one MTP site."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+	if isinstance(meeting_ids, str):
+		meeting_ids = frappe.parse_json(meeting_ids)
+	if (
+		not isinstance(meeting_ids, list)
+		or len(meeting_ids) > 100
+		or any(not isinstance(meeting_id, str) or not meeting_id.strip() for meeting_id in meeting_ids)
+	):
+		frappe.throw(_("A list of at most 100 meeting IDs is required"), frappe.ValidationError)
+
+	meeting_ids = list(dict.fromkeys(meeting_id.strip() for meeting_id in meeting_ids))
+	if not meeting_ids:
+		return {"available": True, "counts": {}}
+
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	owned_meetings = set(
+		frappe.get_all(
+			"Sae Meeting",
+			filters={"name": ["in", meeting_ids], "host_name": host_name},
+			pluck="name",
+		)
+	)
+	if owned_meetings != set(meeting_ids):
+		frappe.throw(_("One or more meetings do not belong to this site"), frappe.PermissionError)
+
+	sfu_config = get_sfu_config()
+	secret = sfu_config.get("sfu_secret") or frappe.conf.get("secret_key")
+	if not secret:
+		frappe.throw(_("SFU secret not configured"), frappe.ValidationError)
+
+	token = _generate_sfu_token(
+		user_id=frappe.session.user,
+		meeting_id="presence-list",
+		scope="presence-list",
+		expires_in=30,
+		meeting_ids=meeting_ids,
+	)
+	parsed_url = urlsplit(sfu_config["sfu_server_url"].rstrip("/"))
+	if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+		frappe.throw(_("Invalid SFU server URL"), frappe.ValidationError)
+	if parsed_url.scheme == "http" and parsed_url.port is None:
+		netloc = f"{parsed_url.hostname}:{sfu_config['sfu_server_port']}"
+		parsed_url = parsed_url._replace(netloc=netloc)
+	sfu_endpoint = urlunsplit(parsed_url).rstrip("/") + "/internal/presence"
+
+	try:
+		response = requests.post(
+			sfu_endpoint,
+			json={"meeting_ids": meeting_ids},
+			headers={"Authorization": f"Bearer {token}"},
+			timeout=3,
+		)
+		response.raise_for_status()
+		payload = response.json()
+		counts = payload.get("counts") or {}
+		return {
+			"available": True,
+			"counts": {
+				meeting_id: max(0, int(counts.get(meeting_id, 0))) for meeting_id in meeting_ids
+			},
+		}
+	except (requests.RequestException, ValueError, TypeError) as exc:
+		frappe.log_error(str(exc), "Meet SFU Presence")
+		return {"available": False, "counts": {}}
+
+
+@frappe.whitelist(allow_guest=True)
+def sfu_presence_event():
+	"""Validate an SFU-signed room count and relay it to its registered MTP site."""
+	request = frappe.local.request
+	authorization = request.headers.get("Authorization", "")
+	if not authorization.startswith("Bearer "):
+		frappe.throw(_("SFU authentication is required"), frappe.AuthenticationError)
+
+	sfu_config = get_sfu_config()
+	secret = sfu_config.get("sfu_secret") or frappe.conf.get("secret_key")
+	try:
+		claims = jwt.decode(authorization[7:], secret, algorithms=["HS256"])
+	except jwt.InvalidTokenError:
+		frappe.throw(_("Invalid SFU event token"), frappe.AuthenticationError)
+	if claims.get("scope") != "sfu-presence-event":
+		frappe.throw(_("Invalid SFU event scope"), frappe.AuthenticationError)
+
+	meeting_id = claims.get("meeting_id")
+	host_name = (claims.get("host_name") or "").strip().lower().rstrip(".")
+	count = claims.get("count")
+	if (
+		claims.get("site") != frappe.local.site
+		or not meeting_id
+		or not host_name
+		or not isinstance(count, int)
+		or count < 0
+	):
+		frappe.throw(_("Invalid presence event"), frappe.ValidationError)
+	if not frappe.db.exists("Sae Meeting", {"name": meeting_id, "host_name": host_name}):
+		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
+
+	callback = frappe.db.get_value(
+		"Meet Domain", host_name, ["callback_url", "callback_secret"], as_dict=True
+	)
+	if not callback:
+		return {"relayed": False}
+
+	timestamp = int(time.time())
+	signature_payload = f"{host_name}\n{meeting_id}\n{count}\n{timestamp}".encode()
+	signature = hmac.new(
+		callback.callback_secret.encode(), signature_payload, hashlib.sha256
+	).hexdigest()
+	try:
+		response = requests.post(
+			callback.callback_url,
+			json={
+				"host_name": host_name,
+				"meeting_id": meeting_id,
+				"count": count,
+				"timestamp": timestamp,
+			},
+			headers={"Authorization": f"Bearer {signature}"},
+			timeout=2,
+		)
+		response.raise_for_status()
+		return {"relayed": True}
+	except requests.RequestException as exc:
+		frappe.log_error(str(exc), "Meet Presence Relay")
+		return {"relayed": False}
 
 
 @frappe.whitelist(allow_guest=True)

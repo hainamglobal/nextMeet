@@ -78,7 +78,13 @@ export function registerRoomQueryHandlers(deps: HandlerDeps) {
 				deps.authManager.ensurePresenceAccess(socket);
 
 				if (
-					!checkSocketRateLimits(socket, deps.rateLimiter, 10, 10, 60 * 1000)
+					!checkSocketRateLimits(
+						socket,
+						deps.rateLimiter,
+						socket.scope === 'presence-preview' ? 180 : 10,
+						socket.scope === 'presence-preview' ? 180 : 10,
+						60 * 1000,
+					)
 				) {
 					callback({
 						success: false,

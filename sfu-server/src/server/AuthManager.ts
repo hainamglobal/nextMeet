@@ -74,6 +74,8 @@ export class AuthManager {
 			socket.userId = decoded.user_id;
 			socket.userName = decoded.user_name;
 			socket.meetingId = decoded.meeting_id;
+			socket.presenceCallbackUrl = decoded.presence_callback_url;
+			socket.presenceHostName = decoded.presence_host_name;
 			socket.site = decoded.site;
 			socket.isHost = decoded.is_host || false;
 			socket.isCohost = decoded.is_cohost || false;

@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io';
 import { loggers } from '../../utils/logger';
+import { publishPresence } from '../PresenceWebhook';
 import type { HandlerDeps } from './Handler';
 import { isRealParticipant } from './utils';
 
@@ -24,6 +25,14 @@ export function registerDisconnectHandlers(deps: HandlerDeps) {
 
 					if (socket.scope === 'full') {
 						await deps.mediasoup.removePeer(roomId, participantId);
+						void publishPresence(
+							deps.mediasoup,
+							roomId,
+							socket.meetingId,
+							socket.site,
+							socket.presenceHostName,
+							socket.presenceCallbackUrl,
+						);
 
 						if (isRealParticipant(participantId)) {
 							deps.registry.emitParticipantEvent(

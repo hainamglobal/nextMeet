@@ -14,6 +14,7 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.create",
 	"meet.api.meeting.get_sfu_connection_details",
 	"meet.api.meeting.get_sfu_presence_preview_token",
+	"meet.api.meeting.get_presence_counts",
 	"meet.api.meeting.join_meeting",
 	"meet.api.meeting.join_meeting_as_guest",
 	"meet.api.meeting.get_waiting_room",
@@ -42,6 +43,8 @@ def request(method_name, params):
 	if method_name == "meet.api.meeting.create":
 		params["host_name"] = site_host_name
 	elif method_name == "meet.api.meeting.get_sfu_presence_preview_token":
+		params["expected_host_name"] = site_host_name
+	elif method_name == "meet.api.meeting.get_presence_counts":
 		params["expected_host_name"] = site_host_name
 	elif method_name == "frappe.client.get_list" and params.get("doctype") == "Sae Meeting":
 		filters = params.get("filters") or {}
@@ -83,3 +86,22 @@ def register_user_domain(meeting_id, user_email, user_name):
 			"host_name": site_host_name,
 		},
 	)
+
+
+def configure_presence_callback(host_name, callback_url, callback_secret):
+	site_host_name = get_site_host_name()
+	if host_name.strip().lower().rstrip(".") != site_host_name:
+		frappe.throw(_("Presence callback host does not match this site"), frappe.PermissionError)
+	client = MeetBackendClient(get_backend_settings())
+	try:
+		return client.call(
+			"meet.api.integration.configure_presence_callback",
+			{
+				"host_name": site_host_name,
+				"callback_url": callback_url,
+				"callback_secret": callback_secret,
+			},
+		)
+	except MeetBackendError as exc:
+		frappe.log_error(str(exc), "Meet Presence Registration")
+		frappe.throw(_("Could not register the MTP presence callback"), frappe.ValidationError)

@@ -52,7 +52,7 @@ export class SFUServer {
 
 		this.mediasoup = new MediasoupManager();
 		this.authManager = new AuthManager(this.config.jwtSecret);
-		this.routeManager = new RouteManager(this.app, this.mediasoup);
+		this.routeManager = new RouteManager(this.app, this.mediasoup, jwtSecret);
 		this.socketHandlerManager = new SocketHandlerManager(
 			this.io,
 			this.mediasoup,

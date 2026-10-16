@@ -132,3 +132,56 @@ def record_user_domain(meeting_id, user_email, host_name, user_name=None):
 		}
 	).insert(ignore_permissions=True)
 	return entry.name
+
+
+@frappe.whitelist()
+def configure_presence_callback(host_name, callback_url, callback_secret):
+	"""Save the callback registered by an authenticated MTP site."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+	request = getattr(frappe.local, "request", None)
+	authorization = request.headers.get("Authorization", "") if request else ""
+	if not authorization.lower().startswith("token "):
+		frappe.throw(_("Server API authentication is required"), frappe.AuthenticationError)
+
+	host_name = (host_name or "").strip().lower().rstrip(".")
+	if not host_name or not callback_url or not callback_secret:
+		frappe.throw(_("Host name and callback details are required"), frappe.ValidationError)
+	from urllib.parse import urlsplit
+
+	callback_host = (urlsplit(callback_url).hostname or "").strip().lower().rstrip(".")
+	if not callback_host or (callback_host != host_name and callback_host not in {"localhost", "127.0.0.1"}):
+		frappe.throw(_("Callback host must match the registered site"), frappe.ValidationError)
+	if not callback_url.startswith(("https://", "http://localhost", "http://127.0.0.1")):
+		frappe.throw(_("Presence callback must use HTTPS"), frappe.ValidationError)
+	doc = frappe.get_doc(
+		{
+			"doctype": "Meet Domain",
+			"host_name": host_name,
+			"callback_url": callback_url,
+			"callback_secret": callback_secret,
+		}
+	)
+	if frappe.db.exists("Meet Domain", host_name):
+		doc.name = host_name
+		doc.save(ignore_permissions=True)
+	else:
+		doc.insert(ignore_permissions=True)
+	return {"registered": True, "host_name": host_name}
+
+
+@frappe.whitelist()
+def register_presence_callback():
+	"""Register MTP's webhook on the configured remote Meet site."""
+	from hashlib import sha256
+	import hmac
+
+	from meet.config.backend import get_backend_settings, get_site_host_name
+
+	settings = get_backend_settings()
+	host_name = get_site_host_name()
+	callback_secret = hmac.new(
+		settings["api_secret"].encode(), f"mtp-presence:{host_name}".encode(), sha256
+	).hexdigest()
+	callback_url = frappe.utils.get_url("/api/method/mtp.api.meet.presence_event")
+	return meet_backend_service.configure_presence_callback(host_name, callback_url, callback_secret)
