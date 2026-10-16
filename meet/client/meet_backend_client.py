@@ -1,5 +1,7 @@
 """HTTP transport for the remote Frappe Meet API."""
 
+import json
+
 import requests
 
 
@@ -30,5 +32,34 @@ class MeetBackendClient:
 		except ValueError:
 			payload = {}
 		if not response.ok:
-			raise MeetBackendError(f"Meet server returned HTTP {response.status_code}")
+			details = _get_frappe_error_messages(payload)
+			message = f"Meet server returned HTTP {response.status_code}"
+			if details:
+				message = f"{message}: {details}"
+			raise MeetBackendError(message)
 		return payload.get("message", payload)
+
+
+def _get_frappe_error_messages(payload):
+	"""Extract only user-safe Frappe validation messages, never raw response data."""
+	raw_messages = payload.get("_server_messages") if isinstance(payload, dict) else None
+	if isinstance(raw_messages, str):
+		try:
+			raw_messages = json.loads(raw_messages)
+		except ValueError:
+			return ""
+	if not isinstance(raw_messages, list):
+		return ""
+
+	messages = []
+	for raw_message in raw_messages[:3]:
+		if isinstance(raw_message, str):
+			try:
+				raw_message = json.loads(raw_message)
+			except ValueError:
+				continue
+		if isinstance(raw_message, dict) and isinstance(raw_message.get("message"), str):
+			text = raw_message["message"].strip()
+			if text:
+				messages.append(text[:240])
+	return "; ".join(messages)

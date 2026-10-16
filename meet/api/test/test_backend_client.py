@@ -1,3 +1,4 @@
+import json
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
@@ -39,6 +40,19 @@ class TestMeetBackendClient(TestCase):
 
 		with self.assertRaisesRegex(MeetBackendError, "HTTP 403"):
 			self.client.call("meet.api.meeting.create", {})
+
+	@patch("meet.client.meet_backend_client.requests.post")
+	def test_call_preserves_frappe_validation_message_without_raw_payload(self, post):
+		response = Mock(ok=False, status_code=417)
+		response.json.return_value = {
+			"_server_messages": json.dumps([json.dumps({"message": "Callback host must match the registered site"})]),
+			"exception": "Traceback with internal details",
+		}
+		post.return_value = response
+
+		with self.assertRaisesRegex(MeetBackendError, "Callback host must match the registered site") as error:
+			self.client.call("meet.api.integration.configure_presence_callback", {})
+		self.assertNotIn("Traceback", str(error.exception))
 
 
 class TestGuestNameValidation(TestCase):

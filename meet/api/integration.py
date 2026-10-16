@@ -175,6 +175,7 @@ def register_presence_callback():
 	"""Register MTP's webhook on the configured remote Meet site."""
 	from hashlib import sha256
 	import hmac
+	from urllib.parse import urlsplit, urlunsplit
 
 	from meet.config.backend import get_backend_settings, get_site_host_name
 
@@ -183,5 +184,16 @@ def register_presence_callback():
 	callback_secret = hmac.new(
 		settings["api_secret"].encode(), f"mtp-presence:{host_name}".encode(), sha256
 	).hexdigest()
-	callback_url = frappe.utils.get_url("/api/method/mtp.api.meet.presence_event")
+	configured_host = (frappe.conf.get("host_name") or host_name).strip().rstrip("/")
+	parsed_host = urlsplit(
+		configured_host if "://" in configured_host else f"//{configured_host}"
+	)
+	if not parsed_host.hostname or parsed_host.hostname.strip().lower().rstrip(".") != host_name:
+		frappe.throw(_("Configured MTP host_name is invalid"), frappe.ValidationError)
+	scheme = parsed_host.scheme or "https"
+	if scheme != "https" and not frappe.conf.get("developer_mode"):
+		frappe.throw(_("MTP callback URL must use HTTPS"), frappe.ValidationError)
+	callback_url = urlunsplit(
+		(scheme, parsed_host.netloc, "/api/method/mtp.api.meet.presence_event", "", "")
+	)
 	return meet_backend_service.configure_presence_callback(host_name, callback_url, callback_secret)
