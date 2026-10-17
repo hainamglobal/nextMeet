@@ -17,21 +17,25 @@ class TestSFUPresenceURL(TestCase):
 			"https://meet.nextgrp.vn/sfu/internal/presence",
 		)
 
+	@patch("meet.utils.sfu_config.get_sfu_config")
 	@patch("meet.utils.sfu_config.frappe")
-	def test_presence_url_prefers_canonical_sfu_settings(self, frappe_mock):
+	def test_presence_url_prefers_internal_meet_endpoint(self, frappe_mock, get_sfu_config):
 		settings = {
-			"sfu_server_url": "http://sfu-internal",
+			"sfu_server_url": "https://meet.nextgrp.vn/sfu",
 			"sfu_server_port": 3000,
-			"meet_server_url": "http://legacy-meet",
-			"meet_server_port": 8000,
+			"meet_server_url": "http://171.244.63.182",
+			"meet_server_port": 4000,
 		}
 		frappe_mock.conf.get.side_effect = lambda key, default=None: settings.get(key, default)
+		get_sfu_config.return_value = settings
 
-		self.assertEqual(get_sfu_presence_url(), "http://sfu-internal:3000/internal/presence")
+		self.assertEqual(get_sfu_presence_url(), "http://171.244.63.182:4000/internal/presence")
 
+	@patch("meet.utils.sfu_config.get_sfu_config")
 	@patch("meet.utils.sfu_config.frappe")
-	def test_presence_url_falls_back_to_legacy_meet_settings(self, frappe_mock):
-		settings = {"meet_server_url": "http://legacy-sfu", "meet_server_port": 3001}
+	def test_presence_url_falls_back_to_public_sfu_url(self, frappe_mock, get_sfu_config):
+		settings = {"sfu_server_url": "https://meet.nextgrp.vn/sfu", "sfu_server_port": 3000}
 		frappe_mock.conf.get.side_effect = lambda key, default=None: settings.get(key, default)
+		get_sfu_config.return_value = settings
 
-		self.assertEqual(get_sfu_presence_url(), "http://legacy-sfu:3001/internal/presence")
+		self.assertEqual(get_sfu_presence_url(), "https://meet.nextgrp.vn/sfu/internal/presence")

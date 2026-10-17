@@ -17,13 +17,10 @@ def get_sfu_config():
 
 
 def get_sfu_presence_url():
-	"""Build the server-side SFU presence URL, preferring canonical SFU settings."""
-	base_url = frappe.conf.get("sfu_server_url") or frappe.conf.get("meet_server_url")
-	port = frappe.conf.get("sfu_server_port") or frappe.conf.get("meet_server_port")
-	if not base_url or not port:
-		settings = get_sfu_config()
-		base_url = base_url or settings["sfu_server_url"]
-		port = port or settings["sfu_server_port"]
+	"""Use Meet's internal SFU route, falling back to the public SFU URL."""
+	settings = get_sfu_config()
+	base_url = frappe.conf.get("meet_server_url") or settings["sfu_server_url"]
+	port = frappe.conf.get("meet_server_port") or settings["sfu_server_port"]
 	return _build_sfu_presence_url(base_url, port)
 
 

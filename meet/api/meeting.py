@@ -471,7 +471,12 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 	except requests.HTTPError as exc:
 		status = exc.response.status_code if exc.response is not None else "unknown"
 		frappe.log_error("Meet SFU Presence", str(exc))
-		return {"available": False, "counts": {}, "reason": f"SFU returned HTTP {status}"}
+		reason = (
+			"SFU presence endpoint /internal/presence returned HTTP 404; verify the configured SFU URL and deploy the current SFU server"
+			if status == 404
+			else f"SFU returned HTTP {status}"
+		)
+		return {"available": False, "counts": {}, "reason": reason}
 	except requests.RequestException as exc:
 		frappe.log_error("Meet SFU Presence", str(exc))
 		return {
