@@ -702,7 +702,6 @@ def join_meeting_as_guest(
 
 	meeting.add_guest_to_members(guest_id)
 	from meet.api.integration import record_meeting_guest
-
 	record_meeting_guest(meeting, guest_name_clean)
 
 	return {
