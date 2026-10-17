@@ -33,6 +33,9 @@ describe('publishPresence', () => {
 
 		expect(fetch).toHaveBeenCalledTimes(2);
 		expect(mediasoup.getRoomParticipants).toHaveBeenCalledWith('site::room-1');
+		expect(fetch.mock.calls[0][1]?.headers).toHaveProperty(
+			'X-SFU-Presence-Token',
+		);
 	});
 
 	it('does not retry a permanent callback rejection', async () => {

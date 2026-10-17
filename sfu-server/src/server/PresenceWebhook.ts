@@ -48,7 +48,7 @@ export async function publishPresence(
 			const response = await fetch(callbackUrl, {
 				method: 'POST',
 				headers: {
-					Authorization: `Bearer ${token}`,
+					'X-SFU-Presence-Token': token,
 					'Content-Type': 'application/json',
 				},
 				body: '{}',

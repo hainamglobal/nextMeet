@@ -149,7 +149,7 @@ def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
 				"title": title or "",
 				"timestamp": timestamp,
 			},
-			headers={"Authorization": f"Bearer {signature}"},
+			headers={"X-Meet-Event-Signature": signature},
 			timeout=(3.05, 6),
 		)
 		response.raise_for_status()
@@ -494,14 +494,14 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 def sfu_presence_event():
 	"""Validate an SFU-signed room count and relay it to its registered MTP site."""
 	request = frappe.local.request
-	authorization = request.headers.get("Authorization", "")
-	if not authorization.startswith("Bearer "):
+	token = request.headers.get("X-SFU-Presence-Token", "")
+	if not token:
 		frappe.throw(_("SFU authentication is required"), frappe.AuthenticationError)
 
 	sfu_config = get_sfu_config()
 	secret = sfu_config.get("sfu_secret") or frappe.conf.get("secret_key")
 	try:
-		claims = jwt.decode(authorization[7:], secret, algorithms=["HS256"])
+		claims = jwt.decode(token, secret, algorithms=["HS256"])
 	except jwt.InvalidTokenError:
 		frappe.throw(_("Invalid SFU event token"), frappe.AuthenticationError)
 	if claims.get("scope") != "sfu-presence-event":
@@ -559,7 +559,7 @@ def _relay_presence_callback(callback_url, payload, signature):
 			response = requests.post(
 				callback_url,
 				json=payload,
-				headers={"Authorization": f"Bearer {signature}"},
+			headers={"X-Meet-Event-Signature": signature},
 				timeout=(3.05, 6),
 			)
 			response.raise_for_status()
