@@ -58,6 +58,11 @@ export async function publishPresence(
 				}
 				throw new Error(message);
 			}
+			loggers.socketHandler.info(
+				'Presence webhook delivered for meeting %s with count %s',
+				meetingId,
+				count,
+			);
 			return;
 		} catch (error) {
 			loggers.socketHandler.warn(

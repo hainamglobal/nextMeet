@@ -542,6 +542,12 @@ def sfu_presence_event():
 	if not _relay_presence_callback(callback.callback_url, payload, signature):
 		frappe.local.response["http_status_code"] = 502
 		return {"relayed": False, "reason": "NextGRP presence callback failed"}
+	frappe.logger("meet_presence").info(
+		"Relayed room presence: host=%s meeting=%s count=%s",
+		host_name,
+		meeting_id,
+		count,
+	)
 	return {"relayed": True}
 
 
@@ -650,10 +656,9 @@ def join_meeting_as_guest(
 		if meeting.is_user_approved(guest_id) or is_creator:
 			if is_creator and guest_id not in meeting.get_members():
 				meeting.add_guest_to_members(guest_id)
-			from meet.api.integration import notify_guest_admitted, record_meeting_guest
+			from meet.api.integration import record_meeting_guest
 
 			record_meeting_guest(meeting, guest_name_clean)
-			notify_guest_admitted(meeting, guest_id, guest_name_clean)
 			auth_token = _generate_sfu_token(
 				user_id=guest_id,
 				meeting_id=meeting_id,
@@ -696,10 +701,9 @@ def join_meeting_as_guest(
 	)
 
 	meeting.add_guest_to_members(guest_id)
-	from meet.api.integration import notify_guest_admitted, record_meeting_guest
+	from meet.api.integration import record_meeting_guest
 
 	record_meeting_guest(meeting, guest_name_clean)
-	notify_guest_admitted(meeting, guest_id, guest_name_clean)
 
 	return {
 		"status": "joined",
@@ -739,10 +743,9 @@ def get_approved_guest_connection_details(meeting_id: str, guest_id: str) -> dic
 	sfu_config = get_sfu_config()
 
 	guest_name = session_data.get("guest_name", f"Guest-{guest_id[:8]}")
-	from meet.api.integration import notify_guest_admitted, record_meeting_guest
+	from meet.api.integration import record_meeting_guest
 
 	record_meeting_guest(meeting, guest_name)
-	notify_guest_admitted(meeting, guest_id, guest_name)
 
 	auth_token = _generate_sfu_token(
 		user_id=guest_id,

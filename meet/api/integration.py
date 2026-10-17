@@ -1,9 +1,6 @@
 """Authenticated API exposed to MTP for remote Meet operations."""
 
 import frappe
-import hashlib
-import hmac
-import time
 from frappe import _
 
 from meet.services import meet_backend_service
@@ -135,49 +132,6 @@ def record_user_domain(meeting_id, user_email, host_name, user_name=None):
 		}
 	).insert(ignore_permissions=True)
 	return entry.name
-
-
-def notify_guest_admitted(meeting, guest_id, guest_name):
-	"""Send a signed guest-admission event to the owning NextGRP site."""
-	import requests
-
-	host_name = (meeting.host_name or frappe.local.site).strip().lower().rstrip(".")
-	callback = frappe.db.get_value(
-		"Meet Domain", host_name, ["callback_url", "callback_secret"], as_dict=True
-	)
-	if not callback or not callback.callback_url or not callback.callback_secret:
-		frappe.logger("meet_guest_webhook").warning(
-			"Guest admission webhook is not registered for host %s", host_name
-		)
-		return False
-
-	timestamp = int(time.time())
-	payload = {
-		"host_name": host_name,
-		"meeting_id": meeting.name,
-		"timestamp": timestamp,
-		"event_type": "guest_admitted",
-		"guest_id": guest_id,
-		"guest_name": guest_name,
-	}
-	signed_payload = (
-		f"{host_name}\n{meeting.name}\nguest_admitted\n{guest_id}\n{guest_name}\n{timestamp}"
-	).encode()
-	signature = hmac.new(
-		callback.callback_secret.encode(), signed_payload, hashlib.sha256
-	).hexdigest()
-	try:
-		response = requests.post(
-			callback.callback_url,
-			json=payload,
-			headers={"Authorization": f"Bearer {signature}"},
-			timeout=(1, 2),
-		)
-		response.raise_for_status()
-		return True
-	except requests.RequestException as exc:
-		frappe.log_error("Meet Guest Admission Webhook", str(exc))
-		return False
 
 
 @frappe.whitelist()
