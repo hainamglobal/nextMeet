@@ -57,10 +57,27 @@ export async function publishPresence(
 			if (!response.ok) {
 				const message = `Meet presence callback returned ${response.status}`;
 				if (response.status < 500 && response.status !== 429) {
+					let responseReason = '';
+					try {
+						const body = (await response.clone().json()) as {
+							exception?: unknown;
+							message?: unknown;
+						};
+						const detail =
+							typeof body.exception === 'string'
+								? body.exception
+								: typeof body.message === 'string'
+									? body.message
+									: '';
+						responseReason = detail.split(/\r?\n/, 1)[0].slice(0, 180);
+					} catch (_error) {
+						responseReason = '';
+					}
 					loggers.socketHandler.warn(
-						'Presence webhook rejected for room %s: %s',
+						'Presence webhook rejected for room %s: %s%s',
 						roomId,
 						message,
+						responseReason ? ` (${responseReason})` : '',
 					);
 					return;
 				}
