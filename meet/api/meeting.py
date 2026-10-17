@@ -63,6 +63,39 @@ def _get_codec_strategy() -> str:
 	return frappe.get_cached_doc("Sae Settings").codec_strategy or "svc"
 
 
+def _resolve_meeting_host_name(host_name: str | None, created_by_email: str | None) -> str:
+	"""Resolve the MTP tenant for a Meet-created room when no tenant was passed."""
+	if host_name:
+		return host_name.strip().lower().rstrip(".")
+
+	creator_email = (created_by_email or "").strip().lower()
+	if creator_email:
+		known_hosts = {
+			(host or "").strip().lower().rstrip(".")
+			for host in frappe.get_all(
+				"User Domain", filters={"user_email": creator_email}, pluck="host_name"
+			)
+			if host
+		}
+		if len(known_hosts) == 1:
+			return known_hosts.pop()
+		if len(known_hosts) > 1:
+			frappe.throw(
+				_("This user is linked to multiple MTP sites. Open Meet from the intended MTP site."),
+				frappe.ValidationError,
+			)
+
+	mtp_hosts = frappe.get_all("Meet Domain", pluck="host_name")
+	if len(mtp_hosts) == 1:
+		return (mtp_hosts[0] or "").strip().lower().rstrip(".")
+	if len(mtp_hosts) > 1:
+		frappe.throw(
+			_("Multiple MTP sites are connected. Open Meet from the intended MTP site."),
+			frappe.ValidationError,
+		)
+	return frappe.local.site
+
+
 @frappe.whitelist()
 @rate_limit(limit=10, seconds=60 * 60)
 def create(
@@ -85,7 +118,7 @@ def create(
 			"meeting_title": meeting_title,
 			"created_by_name": (created_by_name or "").strip()[:140],
 			"created_by_email": (created_by_email or "").strip().lower()[:140],
-			"host_name": (host_name or frappe.local.site).strip().lower().rstrip("."),
+			"host_name": _resolve_meeting_host_name(host_name, created_by_email),
 			"meeting_type": meeting_type,
 			"allow_guest": allow_guest,
 		}

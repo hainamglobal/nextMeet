@@ -68,7 +68,6 @@ def request(method_name, params):
 			"meet_meeting_created",
 			{"host_name": site_host_name, "meeting_id": result},
 			room="website",
-			after_commit=True,
 		)
 	return result
 

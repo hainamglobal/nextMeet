@@ -1,11 +1,13 @@
 # Copyright (c) 2026, Frappe and contributors
 # For license information, please see license.txt
 
+from unittest.mock import patch
+
 import frappe
 import jwt
 from frappe.tests import IntegrationTestCase
 
-from meet.api.meeting import get_sfu_connection_details
+from meet.api.meeting import _resolve_meeting_host_name, get_sfu_connection_details
 
 
 class IntegrationTestMeetingApi(IntegrationTestCase):
@@ -24,6 +26,29 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 			self._ensure_user(email, first_name)
 
 		self.meeting = self._create_meeting(self.host_email, meeting_type="restricted")
+
+	@patch("meet.api.meeting.frappe.get_all")
+	def test_create_meeting_resolves_the_only_registered_mtp_site(self, get_all):
+		get_all.side_effect = [[], ["mtp.example.com"]]
+
+		host_name = _resolve_meeting_host_name(None, self.host_email)
+
+		self.assertEqual(host_name, "mtp.example.com")
+
+	@patch("meet.api.meeting.frappe.get_all")
+	def test_create_meeting_uses_creator_mtp_site(self, get_all):
+		get_all.return_value = ["mtp-b.example.com"]
+
+		host_name = _resolve_meeting_host_name(None, self.host_email)
+
+		self.assertEqual(host_name, "mtp-b.example.com")
+
+	@patch("meet.api.meeting.frappe.get_all")
+	def test_create_meeting_rejects_ambiguous_mtp_site(self, get_all):
+		get_all.side_effect = [[], ["mtp-a.example.com", "mtp-b.example.com"]]
+
+		with self.assertRaises(frappe.ValidationError):
+			_resolve_meeting_host_name(None, self.host_email)
 
 	def test_member_can_get_sfu_connection_details(self):
 		self.meeting.add_user_to_table("members", self.member_email, save=True, ignore_permissions=True)
