@@ -474,7 +474,11 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 		return {"available": False, "counts": {}, "reason": f"SFU returned HTTP {status}"}
 	except requests.RequestException as exc:
 		frappe.log_error("Meet SFU Presence", str(exc))
-		return {"available": False, "counts": {}, "reason": "Meet could not connect to the SFU"}
+		return {
+			"available": False,
+			"counts": {},
+			"reason": "Meet could not connect to the configured SFU; verify sfu_server_url and sfu_server_port in Meet site_config.json",
+		}
 	except (ValueError, TypeError) as exc:
 		frappe.log_error("Meet SFU Presence", str(exc))
 		return {"available": False, "counts": {}, "reason": "SFU returned an invalid presence response"}
