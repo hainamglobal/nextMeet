@@ -62,13 +62,27 @@ export async function publishPresence(
 						const body = (await response.clone().json()) as {
 							exception?: unknown;
 							message?: unknown;
+							_server_messages?: unknown;
 						};
-						const detail =
+						let detail =
 							typeof body.exception === 'string'
 								? body.exception
 								: typeof body.message === 'string'
 									? body.message
 									: '';
+						if (typeof body._server_messages === 'string') {
+							try {
+								const messages = JSON.parse(body._server_messages) as unknown[];
+								const first = messages[0];
+								const parsed =
+									typeof first === 'string'
+										? (JSON.parse(first) as { message?: unknown })
+										: (first as { message?: unknown });
+								if (typeof parsed?.message === 'string') detail = parsed.message;
+							} catch (_error) {
+								// Keep the HTTP exception detail when Frappe's message is malformed.
+							}
+						}
 						responseReason = detail.split(/\r?\n/, 1)[0].slice(0, 180);
 					} catch (_error) {
 						responseReason = '';
