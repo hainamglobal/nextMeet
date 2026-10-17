@@ -24,6 +24,14 @@ export async function publishPresence(
 	}
 
 	const count = mediasoup.getRoomParticipants(roomId).length;
+	const callbackTarget = (() => {
+		try {
+			const url = new URL(callbackUrl);
+			return `${url.origin}${url.pathname}`;
+		} catch {
+			return 'invalid callback URL';
+		}
+	})();
 	const token = jwt.sign(
 		{
 			scope: 'sfu-presence-event',
@@ -65,11 +73,20 @@ export async function publishPresence(
 			);
 			return;
 		} catch (error) {
+			const cause = (error as Error & { cause?: unknown }).cause;
+			const causeMessage =
+				cause instanceof Error
+					? `${cause.name}: ${cause.message}`
+					: cause
+						? String(cause)
+						: 'none';
 			loggers.socketHandler.warn(
-				'Presence webhook attempt %s/2 failed for room %s: %s',
+				'Presence webhook attempt %s/2 failed for room %s to %s: %s (cause: %s)',
 				attempt,
 				roomId,
+				callbackTarget,
 				(error as Error).message,
+				causeMessage,
 			);
 			if (attempt === 2) return;
 			await new Promise((resolve) => setTimeout(resolve, 250));
