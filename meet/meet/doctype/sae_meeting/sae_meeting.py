@@ -125,12 +125,13 @@ class SaeMeeting(Document):
 
 	def after_insert(self):
 		self.join(frappe.session.user)
-		frappe.enqueue(
-			"meet.api.meeting.notify_mtp_meeting_created",
-			host_name=self.host_name,
-			meeting_id=self.name,
-			title=self.meeting_title,
-			enqueue_after_commit=True,
+		from meet.api.meeting import notify_mtp_meeting_created
+
+		host_name = self.host_name
+		meeting_id = self.name
+		title = self.meeting_title
+		frappe.db.after_commit.add(
+			lambda: notify_mtp_meeting_created(host_name, meeting_id, title)
 		)
 
 	def join(self, user=None):

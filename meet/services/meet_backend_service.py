@@ -63,12 +63,6 @@ def request(method_name, params):
 
 	if method_name == "frappe.client.get" and result.get("host_name") != site_host_name:
 		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
-	if method_name == "meet.api.meeting.create" and isinstance(result, str):
-		frappe.publish_realtime(
-			"meet_meeting_created",
-			{"host_name": site_host_name, "meeting_id": result},
-			room="website",
-		)
 	return result
 
 
