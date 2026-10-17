@@ -1,13 +1,18 @@
 # Copyright (c) 2026, Frappe and contributors
 # For license information, please see license.txt
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import frappe
 import jwt
+import requests
 from frappe.tests import IntegrationTestCase
 
-from meet.api.meeting import _resolve_meeting_host_name, get_sfu_connection_details
+from meet.api.meeting import (
+	_relay_presence_callback,
+	_resolve_meeting_host_name,
+	get_sfu_connection_details,
+)
 
 
 class IntegrationTestMeetingApi(IntegrationTestCase):
@@ -102,6 +107,26 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 
 		self.assertEqual(decoded["site"], frappe.local.site)
 		self.assertEqual(decoded["meeting_id"], self.meeting.name)
+		self.assertTrue(decoded["presence_callback_url"].endswith("/api/method/meet.api.meeting.sfu_presence_event"))
+		self.assertEqual(decoded["presence_host_name"], self.meeting.host_name)
+
+	@patch("meet.api.meeting.time.sleep")
+	@patch("meet.api.meeting.requests.post")
+	def test_presence_webhook_retries_a_transient_delivery_failure(self, post, sleep):
+		failed_response = Mock()
+		failed_response.raise_for_status.side_effect = requests.ConnectionError("temporary")
+		success_response = Mock()
+		post.side_effect = [failed_response, success_response]
+
+		result = _relay_presence_callback(
+			"https://nextgrp.example/api/method/nextgrp.next_meet.controller.meet_controller.meet_event",
+			{"meeting_id": self.meeting.name, "count": 1},
+			"signature",
+		)
+
+		self.assertTrue(result)
+		self.assertEqual(post.call_count, 2)
+		sleep.assert_called_once_with(0.25)
 
 	def test_sfu_token_site_claim_keeps_cross_site_meetings_isolated(self):
 		"""Two sites with meetings of the same name must mint tokens that

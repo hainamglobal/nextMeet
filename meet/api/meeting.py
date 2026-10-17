@@ -531,23 +531,41 @@ def sfu_presence_event():
 	signature = hmac.new(
 		callback.callback_secret.encode(), signature_payload, hashlib.sha256
 	).hexdigest()
-	try:
-		response = requests.post(
-			callback.callback_url,
-			json={
-				"host_name": host_name,
-				"meeting_id": meeting_id,
-				"count": count,
-				"timestamp": timestamp,
-			},
-			headers={"Authorization": f"Bearer {signature}"},
-			timeout=(3.05, 6),
-		)
-		response.raise_for_status()
-		return {"relayed": True}
-	except requests.RequestException as exc:
-		frappe.log_error("Meet Presence Relay", str(exc))
-		return {"relayed": False}
+	payload = {
+		"host_name": host_name,
+		"meeting_id": meeting_id,
+		"count": count,
+		"timestamp": timestamp,
+	}
+	return {"relayed": _relay_presence_callback(callback.callback_url, payload, signature)}
+
+
+def _relay_presence_callback(callback_url, payload, signature):
+	"""Retry one short transient failure; presence snapshots are idempotent."""
+	for attempt in range(2):
+		try:
+			response = requests.post(
+				callback_url,
+				json=payload,
+				headers={"Authorization": f"Bearer {signature}"},
+				timeout=(3.05, 6),
+			)
+			response.raise_for_status()
+			return True
+		except requests.HTTPError as exc:
+			status = exc.response.status_code if exc.response is not None else 0
+			if status and status < 500 and status != 429:
+				frappe.log_error("Meet Presence Relay", str(exc))
+				return False
+			last_error = exc
+		except requests.RequestException as exc:
+			last_error = exc
+
+		if attempt == 0:
+			time.sleep(0.25)
+
+	frappe.log_error("Meet Presence Relay", str(last_error))
+	return False
 
 
 @frappe.whitelist(allow_guest=True)
