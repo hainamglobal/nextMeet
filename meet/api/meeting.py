@@ -94,6 +94,35 @@ def create(
 	return meeting.name
 
 
+def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
+	"""Relay a newly created meeting to its registered MTP site."""
+	host_name = (host_name or "").strip().lower().rstrip(".")
+	callback = frappe.db.get_value(
+		"Meet Domain", host_name, ["callback_url", "callback_secret"], as_dict=True
+	)
+	if not callback:
+		return
+	timestamp = int(time.time())
+	payload = f"{host_name}\n{meeting_id}\nmeeting_created\n{title or ''}\n{timestamp}".encode()
+	signature = hmac.new(callback.callback_secret.encode(), payload, hashlib.sha256).hexdigest()
+	try:
+		response = requests.post(
+			callback.callback_url,
+			json={
+				"host_name": host_name,
+				"meeting_id": meeting_id,
+				"event_type": "meeting_created",
+				"title": title or "",
+				"timestamp": timestamp,
+			},
+			headers={"Authorization": f"Bearer {signature}"},
+			timeout=2,
+		)
+		response.raise_for_status()
+	except requests.RequestException as exc:
+		frappe.log_error("Meet Meeting Created Relay", str(exc))
+
+
 @frappe.whitelist()
 def get_sfu_connection_details(meeting_id: str) -> dict:
 	"""
