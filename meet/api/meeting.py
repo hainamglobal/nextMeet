@@ -10,11 +10,14 @@ from typing import TYPE_CHECKING
 import frappe
 import jwt
 import requests
-from frappe.utils import get_url
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
-from meet.utils.sfu_config import get_sfu_config, get_sfu_presence_url
+from meet.utils.sfu_config import (
+	get_sfu_config,
+	get_sfu_presence_callback_url,
+	get_sfu_presence_url,
+)
 from meet.utils.user import (
 	get_guest_session,
 	get_user_info,
@@ -50,9 +53,7 @@ def _generate_sfu_token(
 		**extra,
 	}
 	if scope == "full":
-		payload["presence_callback_url"] = get_url(
-			"/api/method/meet.api.meeting.sfu_presence_event"
-		)
+		payload["presence_callback_url"] = get_sfu_presence_callback_url()
 		payload["presence_host_name"] = frappe.db.get_value(
 			"Sae Meeting", meeting_id, "host_name"
 		) or frappe.local.site
