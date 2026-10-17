@@ -524,7 +524,9 @@ def sfu_presence_event():
 		"Meet Domain", host_name, ["callback_url", "callback_secret"], as_dict=True
 	)
 	if not callback:
-		return {"relayed": False}
+		frappe.log_error("Meet Presence Relay", f"No callback registered for {host_name}")
+		frappe.local.response["http_status_code"] = 503
+		return {"relayed": False, "reason": "No NextGRP presence callback registered"}
 
 	timestamp = int(time.time())
 	signature_payload = f"{host_name}\n{meeting_id}\n{count}\n{timestamp}".encode()
@@ -537,7 +539,10 @@ def sfu_presence_event():
 		"count": count,
 		"timestamp": timestamp,
 	}
-	return {"relayed": _relay_presence_callback(callback.callback_url, payload, signature)}
+	if not _relay_presence_callback(callback.callback_url, payload, signature):
+		frappe.local.response["http_status_code"] = 502
+		return {"relayed": False, "reason": "NextGRP presence callback failed"}
+	return {"relayed": True}
 
 
 def _relay_presence_callback(callback_url, payload, signature):
