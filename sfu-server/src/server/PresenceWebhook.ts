@@ -34,7 +34,7 @@ export async function publishPresence(
 				'Content-Type': 'application/json',
 			},
 			body: '{}',
-			signal: AbortSignal.timeout(2000),
+			signal: AbortSignal.timeout(8000),
 		});
 		if (!response.ok)
 			throw new Error(`Meet presence callback returned ${response.status}`);

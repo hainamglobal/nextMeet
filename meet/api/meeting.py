@@ -149,7 +149,7 @@ def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
 				"timestamp": timestamp,
 			},
 			headers={"Authorization": f"Bearer {signature}"},
-			timeout=2,
+			timeout=(3.05, 6),
 		)
 		response.raise_for_status()
 	except requests.RequestException as exc:
@@ -541,7 +541,7 @@ def sfu_presence_event():
 				"timestamp": timestamp,
 			},
 			headers={"Authorization": f"Bearer {signature}"},
-			timeout=2,
+			timeout=(3.05, 6),
 		)
 		response.raise_for_status()
 		return {"relayed": True}
