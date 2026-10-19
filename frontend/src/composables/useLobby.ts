@@ -1,6 +1,7 @@
 import { frappeRequest, toast } from "frappe-ui";
 import { getErrorMessage } from "../utils/error";
 import type { LobbyStore } from "./useLobbyStore";
+import { useConnectionState } from "./useConnectionState";
 
 interface LobbyAPI {
 	approveUser: (userId: string) => Promise<void>;
@@ -13,15 +14,23 @@ export function useLobby(deps: {
 	meetingId: string;
 }): LobbyAPI {
 	const { lobbyStore, meetingId } = deps;
+	const connectionState = useConnectionState();
+
+	const getGuestId = () =>
+		connectionState.guestId || sessionStorage.getItem("guest_id") || undefined;
 
 	const approveUser = async (userId: string) => {
 		try {
+			const params: Record<string, unknown> = {
+				meeting_id: meetingId,
+				user_id: userId,
+			};
+			const guestId = getGuestId();
+			if (guestId) params.guest_id = guestId;
+
 			await frappeRequest({
 				url: "meet.api.meeting.approve_join_request",
-				params: {
-					meeting_id: meetingId,
-					user_id: userId,
-				},
+				params,
 			});
 
 			lobbyStore.removeLobbyUser(userId);
@@ -33,11 +42,15 @@ export function useLobby(deps: {
 
 	const approveAllUsers = async () => {
 		try {
+			const params: Record<string, unknown> = {
+				meeting_id: meetingId,
+			};
+			const guestId = getGuestId();
+			if (guestId) params.guest_id = guestId;
+
 			await frappeRequest({
 				url: "meet.api.meeting.approve_all_join_requests",
-				params: {
-					meeting_id: meetingId,
-				},
+				params,
 			});
 
 			lobbyStore.setLobbyUsers([]);
@@ -49,12 +62,16 @@ export function useLobby(deps: {
 
 	const rejectUser = async (userId: string) => {
 		try {
+			const params: Record<string, unknown> = {
+				meeting_id: meetingId,
+				user_id: userId,
+			};
+			const guestId = getGuestId();
+			if (guestId) params.guest_id = guestId;
+
 			await frappeRequest({
 				url: "meet.api.meeting.reject_join_request",
-				params: {
-					meeting_id: meetingId,
-					user_id: userId,
-				},
+				params,
 			});
 
 			lobbyStore.removeLobbyUser(userId);

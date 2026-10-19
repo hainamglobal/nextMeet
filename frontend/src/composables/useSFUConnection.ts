@@ -312,7 +312,7 @@ export function useSFUConnection(deps: {
 					userId: connectionState.guestId || "",
 					avatar: null,
 					is_guest: true,
-					isHost: false,
+					isHost: Boolean(isHost || connectionState.isHost),
 				};
 			} else {
 				userData = {
@@ -323,7 +323,7 @@ export function useSFUConnection(deps: {
 					userId: currentUser.currentUser.value?.user_id || "",
 					avatar: currentUser.currentUser.value?.avatar || "",
 					is_guest: false,
-					isHost,
+					isHost: Boolean(isHost || connectionState.isHost),
 				};
 			}
 
@@ -364,7 +364,7 @@ export function useSFUConnection(deps: {
 
 			connectionState.isSetupComplete = true;
 
-			if (!guestName && (isHost || isCohost)) {
+			if (isHost || isCohost || connectionState.isHost) {
 				fetchExistingWaitingRoomUsers();
 			}
 		} catch (error) {
@@ -375,9 +375,14 @@ export function useSFUConnection(deps: {
 
 	const fetchExistingWaitingRoomUsers = async () => {
 		try {
+			const guestId = connectionState.guestId || sessionStorage.getItem("guest_id");
+			const params: Record<string, unknown> = { meeting_id: meetingId };
+			if (guestId) {
+				params.guest_id = guestId;
+			}
 			const result = (await frappeRequest({
 				url: "meet.api.meeting.get_waiting_room",
-				params: { meeting_id: meetingId },
+				params,
 			})) as WaitingRoomResponse;
 
 			if (result?.waiting_users) {
@@ -593,6 +598,15 @@ export function useSFUConnection(deps: {
 			return;
 		}
 
+		const guestId = connectionState.guestId || sessionStorage.getItem("guest_id");
+		socket.emit("meeting_subscribe", {
+			meeting_id: meetingId,
+			guest_id: guestId || undefined,
+		});
+		if (guestId) {
+			socket.emit("guest_subscribe", guestId);
+		}
+
 		socket.on("meeting_join_request", handleMeetingJoinRequest);
 		socket.on("meeting_join_approved", handleMeetingJoinApproved);
 		socket.on("meeting_join_rejected", handleMeetingJoinRejected);
@@ -604,6 +618,15 @@ export function useSFUConnection(deps: {
 
 	const removeFrappeRealtimeEventListeners = () => {
 		if (!socket) return;
+
+		const guestId = connectionState.guestId || sessionStorage.getItem("guest_id");
+		socket.emit("meeting_unsubscribe", {
+			meeting_id: meetingId,
+			guest_id: guestId || undefined,
+		});
+		if (guestId) {
+			socket.emit("guest_unsubscribe", guestId);
+		}
 
 		socket.off("meeting_join_request", handleMeetingJoinRequest);
 		socket.off("meeting_join_approved", handleMeetingJoinApproved);
@@ -640,6 +663,9 @@ export function useSFUConnection(deps: {
 				chatStore.hostOnlyChat = !!joinResult.host_only_chat;
 			}
 
+			const isHostUser = Boolean(joinResult.is_host);
+			connectionState.isHost = isHostUser;
+
 			if (joinResult.status === "waiting_for_approval") {
 				lobbyStore.isWaitingForApproval = true;
 				connectionState.isInPreview = false;
@@ -650,7 +676,7 @@ export function useSFUConnection(deps: {
 			}
 
 			connectionState.isConnecting = true;
-			await setupSFUConnection(guestName, false, false);
+			await setupSFUConnection(guestName, isHostUser, false);
 			setupFrappeRealtimeEventListeners();
 			connectionState.isInPreview = false;
 			connectionState.isConnecting = false;
@@ -686,9 +712,12 @@ export function useSFUConnection(deps: {
 				return;
 			}
 
+			const isHostUser = Boolean(joinResult?.is_host);
+			connectionState.isHost = isHostUser;
+
 			await setupSFUConnection(
 				null,
-				(joinResult?.is_host || false) as boolean,
+				isHostUser,
 				(joinResult?.is_cohost || false) as boolean,
 			);
 

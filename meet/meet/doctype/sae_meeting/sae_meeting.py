@@ -109,19 +109,53 @@ class SaeMeeting(Document):
 	def publish_waiting_room_request(self, user: str, waiting_count: int):
 		"""Notify host and co-hosts about a waiting-room request."""
 		user_name, user_image = self.get_waiting_room_payload(user)
+		payload = {
+			"meeting": self.name,
+			"user": user,
+			"user_name": user_name,
+			"user_image": user_image,
+			"waiting_count": waiting_count,
+		}
 
-		for authorized_user in [self.owner, *self.get_co_hosts()]:
+		# Realtime broadcast to meeting hosts room
+		frappe.publish_realtime(
+			"meeting_join_request",
+			message=payload,
+			room=f"meeting:{self.name}:hosts",
+			after_commit=True,
+		)
+
+		authorized_users = set([self.owner, *self.get_co_hosts()])
+		if self.created_by_email:
+			authorized_users.add(self.created_by_email.strip().lower())
+
+		for authorized_user in authorized_users:
 			frappe.publish_realtime(
 				"meeting_join_request",
 				user=authorized_user,
-				message={
-					"meeting": self.name,
-					"user": user,
-					"user_name": user_name,
-					"user_image": user_image,
-					"waiting_count": waiting_count,
-				},
+				message=payload,
+				after_commit=True,
 			)
+
+		# Also notify active host guest sessions in the room
+		for member_id in self.get_members():
+			if member_id.startswith("guest_") and self.is_host_or_cohost(member_id):
+				frappe.publish_realtime(
+					"meeting_join_request",
+					message=payload,
+					room=f"guest:{member_id}",
+					after_commit=True,
+				)
+
+		# Broadcast waiting count to all participants in this meeting
+		frappe.publish_realtime(
+			"meeting_waiting_room_updated",
+			doctype=self.doctype,
+			docname=self.name,
+			message={"meeting": self.name, "waiting_count": waiting_count},
+			room=f"meeting:{self.name}",
+			after_commit=True,
+		)
 
 	def after_insert(self):
 		self.join(frappe.session.user)
@@ -145,11 +179,21 @@ class SaeMeeting(Document):
 			user = frappe.session.user
 
 		creator_email = (self.created_by_email or "").strip().lower()
-		is_creator = creator_email and user.strip().lower() == creator_email
+		user_clean = user.strip().lower() if user else ""
+		user_email = ""
+		if user and not user.startswith("guest_") and user != "Guest":
+			user_email = (frappe.db.get_value("User", user, "email") or user).strip().lower()
+
+		is_creator = False
+		if creator_email:
+			is_creator = (user_clean == creator_email) or (user_email == creator_email)
+		if not is_creator and self.is_host_or_cohost(user):
+			is_creator = True
+
 		if self.meeting_type == "restricted" and user != self.owner and not is_creator:
 			if not self.is_user_approved(user):
 				self.add_to_waiting_room(user)
-				self.save()
+				self.save(ignore_permissions=True)
 				return {"status": "waiting_for_approval", "message": "Waiting for host approval"}
 
 		joined = self.add_user_to_table("members", user)
@@ -157,8 +201,7 @@ class SaeMeeting(Document):
 		# Add user if not already in room
 		if joined:
 			self.remove_from_waiting_room(user)
-
-			self.save()
+			self.save(ignore_permissions=True)
 
 		return {"status": "joined", "message": "Successfully joined the meeting"}
 
@@ -213,9 +256,12 @@ class SaeMeeting(Document):
 		"""Remove user from waiting room"""
 		self.waiting_room = [row for row in self.waiting_room if row.user != user]
 
-	def approve_user(self, user):
+	def approve_user(self, user, approved_by=None):
 		"""Approve a user from waiting room to join the meeting"""
-		if not self.is_host_or_cohost(frappe.session.user):
+		if not approved_by:
+			approved_by = frappe.session.user
+
+		if not self.is_host_or_cohost(approved_by):
 			frappe.throw(_("Only hosts and co-hosts can approve join requests"))
 
 		waiting_users = self.get_waiting_room()
@@ -225,13 +271,14 @@ class SaeMeeting(Document):
 		self.add_user_to_table("members", user)
 
 		self.remove_from_waiting_room(user)
-		self.save()
+		self.save(ignore_permissions=True)
 
 		# for signed-in users
 		frappe.publish_realtime(
 			"meeting_join_approved",
 			user=user,
-			message={"meeting": self.name, "user": user, "approved_by": frappe.session.user},
+			message={"meeting": self.name, "user": user, "approved_by": approved_by},
+			after_commit=True,
 		)
 
 		# for guests
@@ -253,32 +300,58 @@ class SaeMeeting(Document):
 
 		updated_waiting_users = self.get_waiting_room()
 
-		authorized_users = [self.owner, *self.get_co_hosts()]
+		# Broadcast to hosts room
+		frappe.publish_realtime(
+			"meeting_user_approved",
+			message={"meeting": self.name, "user": user, "approved_by": approved_by},
+			room=f"meeting:{self.name}:hosts",
+			after_commit=True,
+		)
+
+		authorized_users = set([self.owner, *self.get_co_hosts()])
+		if self.created_by_email:
+			authorized_users.add(self.created_by_email.strip().lower())
+
 		for authorized_user in authorized_users:
 			frappe.publish_realtime(
 				"meeting_user_approved",
 				user=authorized_user,
-				message={"meeting": self.name, "user": user, "approved_by": frappe.session.user},
+				message={"meeting": self.name, "user": user, "approved_by": approved_by},
+				after_commit=True,
 			)
+
+		for member_id in self.get_members():
+			if member_id.startswith("guest_") and self.is_host_or_cohost(member_id):
+				frappe.publish_realtime(
+					"meeting_user_approved",
+					message={"meeting": self.name, "user": user, "approved_by": approved_by},
+					room=f"guest:{member_id}",
+					after_commit=True,
+				)
 
 		frappe.publish_realtime(
 			"meeting_waiting_room_updated",
 			doctype=self.doctype,
 			docname=self.name,
 			message={"meeting": self.name, "waiting_count": len(updated_waiting_users)},
+			room=f"meeting:{self.name}",
+			after_commit=True,
 		)
 
 		return {"status": "joined", "message": "Successfully joined the meeting"}
 
-	def approve_all_users(self):
-		if not self.is_host_or_cohost(frappe.session.user):
+	def approve_all_users(self, approved_by=None):
+		if not approved_by:
+			approved_by = frappe.session.user
+
+		if not self.is_host_or_cohost(approved_by):
 			frappe.throw(_("Only hosts and co-hosts can approve join requests"))
 
-		users = self.get_waiting_room()
+		users = list(self.get_waiting_room())
 		for user in users:
-			self.approve_user(user)
+			self.approve_user(user, approved_by=approved_by)
 
-		self.save()
+		self.save(ignore_permissions=True)
 
 	def reject_user(self, user, rejected_by=None):
 		"""Reject a user from waiting room"""
@@ -301,21 +374,52 @@ class SaeMeeting(Document):
 		if not already_banned:
 			self.append("banned_users", self.build_user_row(user))
 
-		self.save()
+		self.save(ignore_permissions=True)
 
 		frappe.publish_realtime(
 			"meeting_join_rejected",
 			user=user,
 			message={"meeting": self.name, "user": user, "rejected_by": rejected_by},
+			after_commit=True,
 		)
 
-		authorized_users = [self.owner, *self.get_co_hosts()]
+		# for guests
+		if user.startswith("guest_"):
+			frappe.publish_realtime(
+				"meet:guest_join_rejected",
+				{"meeting_id": self.name, "guest_id": user},
+				room=f"guest:{user}",
+				after_commit=True,
+			)
+
+		# Broadcast to hosts room
+		frappe.publish_realtime(
+			"meeting_user_rejected",
+			message={"meeting": self.name, "user": user, "rejected_by": rejected_by},
+			room=f"meeting:{self.name}:hosts",
+			after_commit=True,
+		)
+
+		authorized_users = set([self.owner, *self.get_co_hosts()])
+		if self.created_by_email:
+			authorized_users.add(self.created_by_email.strip().lower())
+
 		for authorized_user in authorized_users:
 			frappe.publish_realtime(
 				"meeting_user_rejected",
 				user=authorized_user,
 				message={"meeting": self.name, "user": user, "rejected_by": rejected_by},
+				after_commit=True,
 			)
+
+		for member_id in self.get_members():
+			if member_id.startswith("guest_") and self.is_host_or_cohost(member_id):
+				frappe.publish_realtime(
+					"meeting_user_rejected",
+					message={"meeting": self.name, "user": user, "rejected_by": rejected_by},
+					room=f"guest:{member_id}",
+					after_commit=True,
+				)
 
 		updated_waiting_users = self.get_waiting_room()
 		frappe.publish_realtime(
@@ -323,12 +427,16 @@ class SaeMeeting(Document):
 			doctype=self.doctype,
 			docname=self.name,
 			message={"meeting": self.name, "waiting_count": len(updated_waiting_users)},
+			room=f"meeting:{self.name}",
+			after_commit=True,
 		)
 
 	def is_user_approved(self, user):
 		"""Check if user is already approved"""
+		if not user:
+			return False
 
-		if user == self.owner:
+		if self.is_host_or_cohost(user):
 			return True
 
 		members = self.get_members()
@@ -336,15 +444,56 @@ class SaeMeeting(Document):
 
 	def is_host_or_cohost(self, user: str) -> bool:
 		"""Check if user is the host or a co-host"""
-		if user == self.owner:
+		if not user:
+			return False
+
+		# 1. Administrator / doc owner (intermediary)
+		if user == self.owner or user == "Administrator":
 			return True
 
-		co_hosts = self.get_co_hosts()
-		return user in co_hosts
+		creator_email = (self.created_by_email or "").strip().lower()
+		user_clean = user.strip().lower()
+
+		# 2. Direct email match with creator
+		if creator_email and user_clean == creator_email:
+			return True
+
+		# 3. Guest session check
+		if user.startswith("guest_"):
+			session_data = get_guest_session(user)
+			if session_data:
+				if session_data.get("is_host") or session_data.get("is_creator"):
+					return True
+				guest_email = (session_data.get("user_email") or "").strip().lower()
+				if creator_email and guest_email == creator_email:
+					return True
+
+			# 4. Check User Domain entries for this meeting if linked
+			if creator_email:
+				user_domain_creators = frappe.get_all(
+					"User Domain",
+					filters={"meeting": self.name, "user_email": creator_email},
+					pluck="user_name",
+				)
+				if session_data and session_data.get("guest_name") in user_domain_creators:
+					return True
+
+		# 5. Check if user is a Frappe User whose email matches creator_email
+		if creator_email and frappe.db.exists("User", user):
+			user_email = (frappe.db.get_value("User", user, "email") or "").strip().lower()
+			if user_email == creator_email:
+				return True
+
+		# 6. Co-hosts list
+		co_hosts = [row.user for row in self.get("co_hosts") or []]
+		if user in co_hosts or user_clean in [c.lower() for c in co_hosts]:
+			return True
+
+		return False
 
 	def validate_can_promote_to_cohost(self, user: str, target_user: str) -> None:
 		"""Validate that a user can promote another user to co-host"""
-		if user != self.owner:
+		if not self.is_host_or_cohost(user):
 			frappe.throw(_("Only the meeting host can promote users to co-host"))
 
 		if target_user.startswith("guest_"):

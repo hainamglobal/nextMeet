@@ -117,6 +117,7 @@
 								:creatorUserId="meetingOwner"
 								:coHosts="meetingCoHosts"
 								:lobbyUsers="lobbyStore.lobbyUsers"
+								:isHost="isCurrentUserHost"
 								@close="togglePeople"
 								@muteParticipant="handleMuteParticipant"
 								@kickParticipant="handleKickParticipant"

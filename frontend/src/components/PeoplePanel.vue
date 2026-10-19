@@ -111,6 +111,7 @@ interface Props {
 	creatorUserId: string;
 	coHosts: string[];
 	lobbyUsers?: LobbyUser[];
+	isHost?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -122,6 +123,7 @@ const props = withDefaults(defineProps<Props>(), {
 	creatorUserId: "",
 	coHosts: () => [],
 	lobbyUsers: undefined,
+	isHost: false,
 });
 
 const emit = defineEmits<{
@@ -139,13 +141,14 @@ const searchQuery = ref<string>("");
 
 const isCreator = computed(() => {
 	return (
+		props.isHost ||
 		props.currentUser.user_id === props.creatorUserId ||
 		props.coHosts.includes(props.currentUser.user_id || "")
 	);
 });
 
 const isHost = computed(() => {
-	return props.currentUser.user_id === props.creatorUserId;
+	return props.isHost || props.currentUser.user_id === props.creatorUserId;
 });
 
 const lobbyUsers = computed(() => {
@@ -241,6 +244,8 @@ const allVisibleParticipants = computed(() => {
 			participantData: participant,
 			isCurrentUser: false,
 			isHost:
+				(participant as any).isHost ||
+				(participant as any).is_host ||
 				participant.user_id === props.creatorUserId ||
 				props.coHosts.includes(participant.user_id),
 			canControlParticipant:

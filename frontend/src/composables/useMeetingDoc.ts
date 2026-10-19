@@ -1,6 +1,7 @@
 import { createDocumentResource } from "frappe-ui";
 import { type ComputedRef, computed, type Ref, ref } from "vue";
 import { session } from "../data/session";
+import { useConnectionState } from "./useConnectionState";
 
 interface MeetingDocument {
 	allow_guest?: boolean;
@@ -11,6 +12,8 @@ interface MeetingDocument {
 	host_only_chat?: boolean;
 	co_hosts?: { user: string }[];
 	banned_users?: { user: string }[];
+	created_by_email?: string;
+	created_by_name?: string;
 }
 
 interface DocumentResource {
@@ -90,9 +93,26 @@ export function useMeetingDoc(): UseMeetingDocReturn {
 	});
 
 	const isCurrentUserHost = computed((): boolean => {
+		const connectionState = useConnectionState();
+		if (connectionState.isHost) {
+			return true;
+		}
+
+		const doc = getCurrentMeetingDoc();
 		const currentUserId = session.user?.sessionUser;
+		if (!currentUserId) return false;
+
 		const ownerId = meetingOwner.value;
-		return Boolean(currentUserId && ownerId && currentUserId === ownerId);
+		if (ownerId && currentUserId === ownerId) return true;
+
+		if (
+			doc?.created_by_email &&
+			currentUserId.toLowerCase() === doc.created_by_email.toLowerCase()
+		) {
+			return true;
+		}
+
+		return false;
 	});
 
 	const meetingCoHosts = computed((): string[] => {

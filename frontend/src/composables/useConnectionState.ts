@@ -14,6 +14,8 @@ export interface ConnectionState {
 	guestSfuUrl: string | null;
 	guestSfuPort: string | null;
 	guestSessionToken: string | null;
+	justCreated: boolean;
+	isHost: boolean;
 	$reset: () => void;
 }
 
@@ -31,6 +33,7 @@ export const useConnectionState = defineStore("connection", () => {
 	const guestSfuPort = ref<string | null>(null);
 	const guestSessionToken = ref<string | null>(null);
 	const justCreated = ref(false);
+	const isHost = ref(false);
 
 	function $reset() {
 		connectionError.value = null;
@@ -46,6 +49,7 @@ export const useConnectionState = defineStore("connection", () => {
 		guestSfuPort.value = null;
 		guestSessionToken.value = null;
 		justCreated.value = false;
+		isHost.value = false;
 	}
 
 	return {
@@ -62,6 +66,7 @@ export const useConnectionState = defineStore("connection", () => {
 		guestSfuPort,
 		guestSessionToken,
 		justCreated,
+		isHost,
 		$reset,
 	};
 });

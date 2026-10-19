@@ -157,6 +157,23 @@ def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
 		frappe.log_error("Meet Meeting Created Relay", str(exc))
 
 
+
+def _is_meeting_host(meeting: "SaeMeeting", user: str) -> bool:
+	if not user or user == "Guest":
+		return False
+	if meeting.owner == user or user == "Administrator":
+		return True
+	if meeting.created_by_email:
+		clean_creator = meeting.created_by_email.strip().lower()
+		clean_user = user.strip().lower()
+		if clean_user == clean_creator:
+			return True
+		user_email = (frappe.db.get_value("User", user, "email") or "").strip().lower()
+		if user_email and user_email == clean_creator:
+			return True
+	return False
+
+
 @frappe.whitelist()
 def get_sfu_connection_details(meeting_id: str) -> dict:
 	"""
@@ -181,8 +198,8 @@ def get_sfu_connection_details(meeting_id: str) -> dict:
 		None,
 	)
 
-	is_host = meeting.owner == user
-	is_cohost = meeting.is_host_or_cohost(user) and not is_host
+	is_host = _is_meeting_host(meeting, user)
+	is_cohost = bool(meeting.is_host_or_cohost(user) and not is_host)
 
 	auth_token = _generate_sfu_token(
 		user_id=user,
@@ -257,8 +274,8 @@ def join_meeting(meeting_id: str) -> dict:
 					meeting,
 					frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user,
 				)
-				is_host = meeting.owner == frappe.session.user
-				is_cohost = meeting.is_host_or_cohost(frappe.session.user) and not is_host
+				is_host = _is_meeting_host(meeting, frappe.session.user)
+				is_cohost = bool(meeting.is_host_or_cohost(frappe.session.user) and not is_host)
 				return {
 					"status": "joined",
 					"meeting_id": meeting_id,
@@ -271,49 +288,69 @@ def join_meeting(meeting_id: str) -> dict:
 		frappe.throw(_("Access denied"))
 
 
-@frappe.whitelist()
-def approve_join_request(meeting_id: str, user_id: str) -> dict:
+def _get_meeting_caller(meeting: "SaeMeeting", guest_id: str | None = None) -> str | None:
+	if frappe.session.user != "Guest":
+		return frappe.session.user
+
+	if guest_id:
+		session_data = get_guest_session(guest_id)
+		if session_data and session_data.get("meeting_id") == meeting.name:
+			return guest_id
+
+	req_guest_id = frappe.form_dict.get("guest_id") or (
+		frappe.request.headers.get("X-Guest-ID") if hasattr(frappe, "request") and frappe.request else None
+	)
+	if req_guest_id:
+		session_data = get_guest_session(req_guest_id)
+		if session_data and session_data.get("meeting_id") == meeting.name:
+			return req_guest_id
+
+	return None
+
+
+@frappe.whitelist(allow_guest=True)
+def approve_join_request(meeting_id: str, user_id: str, guest_id: str | None = None) -> dict:
 	"""Approve a user's join request from waiting room"""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
-	meeting.approve_user(user_id)
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Only hosts and co-hosts can approve join requests"), frappe.PermissionError)
 
+	meeting.approve_user(user_id, approved_by=caller)
 	return {"meeting_id": meeting_id, "user_id": user_id, "message": "User approved successfully"}
 
 
-@frappe.whitelist()
-def approve_all_join_requests(meeting_id: str) -> dict:
+@frappe.whitelist(allow_guest=True)
+def approve_all_join_requests(meeting_id: str, guest_id: str | None = None) -> dict:
 	"""Approve all users' join requests from waiting room"""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
-	meeting.approve_all_users()
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Only hosts and co-hosts can approve join requests"), frappe.PermissionError)
 
+	meeting.approve_all_users(approved_by=caller)
 	return {"meeting_id": meeting_id, "message": "All users approved successfully"}
 
 
-@frappe.whitelist()
-def reject_join_request(meeting_id: str, user_id: str) -> dict:
+@frappe.whitelist(allow_guest=True)
+def reject_join_request(meeting_id: str, user_id: str, guest_id: str | None = None) -> dict:
 	"""Reject a user's join request from waiting room"""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
-	meeting.reject_user(user_id)
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Only hosts and co-hosts can reject join requests"), frappe.PermissionError)
 
-	# For guests, publish realtime event in a guest-specific room
-	if user_id.startswith("guest_"):
-		frappe.publish_realtime(
-			"meet:guest_join_rejected",
-			{"meeting_id": meeting_id, "guest_id": user_id},
-			room=f"guest:{user_id}",
-			after_commit=True,
-		)
-
+	meeting.reject_user(user_id, rejected_by=caller)
 	return {"meeting_id": meeting_id, "user_id": user_id, "message": "User rejected successfully"}
 
 
-@frappe.whitelist()
-def get_waiting_room(meeting_id: str) -> dict:
+@frappe.whitelist(allow_guest=True)
+def get_waiting_room(meeting_id: str, guest_id: str | None = None) -> dict:
 	"""Get list of users waiting for approval"""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
-
-	if not meeting.is_host_or_cohost(frappe.session.user):
-		frappe.throw(_("Access denied"))
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Access denied"), frappe.PermissionError)
 
 	waiting_rows = meeting.waiting_room or []
 
@@ -335,6 +372,16 @@ def get_waiting_room(meeting_id: str) -> dict:
 	return {"meeting_id": meeting_id, "waiting_users": user_details}
 
 
+@frappe.whitelist(allow_guest=True)
+def check_is_host(meeting_id: str, guest_id: str | None = None) -> bool:
+	"""Check if caller is host or cohost (used by realtime socket handler)"""
+	if not frappe.db.exists("Sae Meeting", meeting_id):
+		return False
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	caller = _get_meeting_caller(meeting, guest_id)
+	return bool(caller and meeting.is_host_or_cohost(caller))
+
+
 @frappe.whitelist()
 def refresh_sfu_token(meeting_id: str) -> dict:
 	"""
@@ -349,8 +396,8 @@ def refresh_sfu_token(meeting_id: str) -> dict:
 		"User", frappe.session.user, ["full_name", "user_image"]
 	) or (frappe.session.user, None)
 
-	is_host = meeting.owner == frappe.session.user
-	is_cohost = meeting.is_host_or_cohost(frappe.session.user) and not is_host
+	is_host = _is_meeting_host(meeting, frappe.session.user)
+	is_cohost = bool(meeting.is_host_or_cohost(frappe.session.user) and not is_host)
 
 	auth_token = _generate_sfu_token(
 		user_id=frappe.session.user,
@@ -605,6 +652,7 @@ def join_meeting_as_guest(
 	if not global_settings.allow_guest or not meeting.allow_guest:
 		frappe.throw(_("Guests are not allowed in this meeting"))
 	# Check if reusing existing guest_id
+	session_data = None
 	if guest_id:
 		session_data = get_guest_session(guest_id)
 		if session_data and session_data.get("meeting_id") == meeting_id:
@@ -613,19 +661,11 @@ def join_meeting_as_guest(
 		else:
 			# Invalid or expired, generate new
 			guest_id = None
+			session_data = None
 
 	if not guest_id:
 		guest_id = f"guest_{secrets.token_urlsafe(16)}"
 		guest_name_clean = guest_name.strip()
-
-		session_data = {
-			"guest_id": guest_id,
-			"guest_name": guest_name_clean,
-			"meeting_id": meeting_id,
-			"ip_address": frappe.local.request_ip,
-			"joined_at": int(time.time()),
-		}
-		set_guest_session(guest_id, session_data, ttl=24 * 3600)
 
 	if meeting.is_user_banned(guest_id):
 		frappe.throw(_("You are banned from this meeting"))
@@ -639,19 +679,32 @@ def join_meeting_as_guest(
 			["meeting", "user_email", "user_name", "joined_at"],
 			as_dict=True,
 		)
-		if (
-			entry
-			and entry.meeting == meeting_id
-			and entry.user_name == guest_name_clean
-			and entry.joined_at
-			and (frappe.utils.now_datetime() - entry.joined_at).total_seconds() <= 600
-		):
+		if entry and entry.meeting == meeting_id:
 			domain_email = (entry.user_email or "").strip().lower()
+			if (not guest_name_clean or not guest_name_clean.strip()) and entry.user_name:
+				guest_name_clean = entry.user_name.strip()
+
+	creator_email = (meeting.created_by_email or "").strip().lower()
 	is_creator = bool(
 		domain_email
-		and meeting.created_by_email
-		and domain_email == meeting.created_by_email.strip().lower()
+		and creator_email
+		and domain_email == creator_email
 	)
+	if not is_creator and session_data and (session_data.get("is_creator") or session_data.get("is_host")):
+		is_creator = True
+
+	# Store / update guest session
+	session_payload = {
+		"guest_id": guest_id,
+		"guest_name": guest_name_clean,
+		"meeting_id": meeting_id,
+		"ip_address": frappe.local.request_ip,
+		"joined_at": int(time.time()),
+		"is_host": is_creator or (session_data.get("is_host") if session_data else False),
+		"is_creator": is_creator or (session_data.get("is_creator") if session_data else False),
+		"user_email": domain_email or (session_data.get("user_email") if session_data else ""),
+	}
+	set_guest_session(guest_id, session_payload, ttl=24 * 3600)
 
 	if meeting.meeting_type == "restricted":
 		if meeting.is_user_approved(guest_id) or is_creator:
@@ -665,7 +718,7 @@ def join_meeting_as_guest(
 				meeting_id=meeting_id,
 				expires_in=24 * 3600,
 				user_name=guest_name_clean,
-				is_host=False,
+				is_host=is_creator,
 				is_guest=True,
 			)
 			return {
@@ -677,6 +730,8 @@ def join_meeting_as_guest(
 				"sfu_url": sfu_config["sfu_server_url"],
 				"sfu_port": sfu_config["sfu_server_port"],
 				"host_only_chat": bool(meeting.host_only_chat),
+				"is_host": is_creator,
+				"is_creator": is_creator,
 				"message": "Successfully joined meeting",
 			}
 		elif guest_id not in meeting.get_waiting_room():
@@ -689,6 +744,8 @@ def join_meeting_as_guest(
 			"guest_name": guest_name_clean,
 			"message": "Waiting for host approval",
 			"host_only_chat": bool(meeting.host_only_chat),
+			"is_host": False,
+			"is_creator": False,
 		}
 
 	# open meeting
@@ -697,7 +754,7 @@ def join_meeting_as_guest(
 		meeting_id=meeting_id,
 		expires_in=24 * 3600,
 		user_name=guest_name_clean,
-		is_host=False,
+		is_host=is_creator,
 		is_guest=True,
 	)
 
@@ -714,6 +771,8 @@ def join_meeting_as_guest(
 		"sfu_url": sfu_config["sfu_server_url"],
 		"sfu_port": sfu_config["sfu_server_port"],
 		"host_only_chat": bool(meeting.host_only_chat),
+		"is_host": is_creator,
+		"is_creator": is_creator,
 		"message": "Successfully joined meeting",
 	}
 
@@ -827,13 +886,16 @@ def validate_guest_session(guest_id: str) -> dict:
 	}
 
 
-@frappe.whitelist()
-def promote_to_cohost(meeting_id: str, user_id: str) -> dict:
+@frappe.whitelist(allow_guest=True)
+def promote_to_cohost(meeting_id: str, user_id: str, guest_id: str | None = None) -> dict:
 	"""
 	Promote a user to co-host during an active meeting (host only)
 	"""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
-	return meeting.promote_to_cohost(frappe.session.user, user_id)
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Only the meeting host can promote users to co-host"), frappe.PermissionError)
+	return meeting.promote_to_cohost(caller, user_id)
 
 
 @frappe.whitelist(allow_guest=True)
