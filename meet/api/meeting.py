@@ -372,6 +372,26 @@ def get_waiting_room(meeting_id: str, guest_id: str | None = None) -> dict:
 	return {"meeting_id": meeting_id, "waiting_users": user_details}
 
 
+@frappe.whitelist()
+def get_join_status(meeting_id: str) -> dict:
+	"""Return the current user's persisted meeting admission state."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	user = frappe.session.user
+	if meeting.is_user_banned(user):
+		status = "rejected"
+	elif user in meeting.get_waiting_room():
+		status = "waiting_for_approval"
+	elif user in meeting.get_members():
+		status = "joined"
+	else:
+		status = "not_requested"
+
+	return {"meeting_id": meeting_id, "user": user, "status": status}
+
+
 @frappe.whitelist(allow_guest=True)
 def check_is_host(meeting_id: str, guest_id: str | None = None) -> bool:
 	"""Check if caller is host or cohost (used by realtime socket handler)"""
@@ -792,12 +812,22 @@ def get_approved_guest_connection_details(meeting_id: str, guest_id: str) -> dic
 		frappe.throw(_("Meeting not found"))
 
 	meeting = frappe.get_doc("Sae Meeting", meeting_id)
-
-	if not meeting.is_user_approved(guest_id):
-		frappe.throw(_("Guest not approved"))
+	if session_data.get("meeting_id") != meeting_id:
+		frappe.throw(_("Guest session does not belong to this meeting"), frappe.PermissionError)
 
 	if meeting.is_user_banned(guest_id):
-		frappe.throw(_("You are banned from this meeting"))
+		return {
+			"status": "rejected",
+			"meeting_id": meeting_id,
+			"guest_id": guest_id,
+		}
+
+	if not meeting.is_user_approved(guest_id):
+		return {
+			"status": "waiting_for_approval",
+			"meeting_id": meeting_id,
+			"guest_id": guest_id,
+		}
 
 	sfu_config = get_sfu_config()
 

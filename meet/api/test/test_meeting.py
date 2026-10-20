@@ -11,6 +11,8 @@ from frappe.tests import IntegrationTestCase
 from meet.api.meeting import (
 	_relay_presence_callback,
 	_resolve_meeting_host_name,
+	get_approved_guest_connection_details,
+	get_join_status,
 	get_sfu_connection_details,
 )
 
@@ -89,6 +91,48 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 
 		self.assertEqual(result["status"], "waiting_for_approval")
 		self.assertNotIn(self.outsider_email, self.meeting.get_members())
+
+	def test_join_status_tracks_waiting_and_approved_users(self):
+		self.meeting.join(self.outsider_email)
+		frappe.set_user(self.outsider_email)
+
+		self.assertEqual(get_join_status(self.meeting.name)["status"], "waiting_for_approval")
+
+		self.meeting.approve_user(self.outsider_email, approved_by=self.host_email)
+
+		self.assertEqual(get_join_status(self.meeting.name)["status"], "joined")
+
+	@patch("meet.api.meeting.get_guest_session")
+	def test_guest_connection_status_stays_waiting_until_host_approves(self, get_guest_session):
+		guest_id = "guest_realtime_test"
+		get_guest_session.return_value = {
+			"guest_id": guest_id,
+			"meeting_id": self.meeting.name,
+			"guest_name": "Realtime Guest",
+		}
+		self.meeting.append("waiting_room", {"user": guest_id, "user_name": "Realtime Guest"})
+		self.meeting.save(ignore_permissions=True)
+
+		result = get_approved_guest_connection_details(self.meeting.name, guest_id)
+
+		self.assertEqual(result["status"], "waiting_for_approval")
+		self.assertEqual(result["guest_id"], guest_id)
+		self.assertNotIn("auth_token", result)
+
+	@patch("meet.api.meeting.get_guest_session")
+	def test_guest_connection_status_reports_a_missed_rejection(self, get_guest_session):
+		guest_id = "guest_realtime_test"
+		get_guest_session.return_value = {
+			"guest_id": guest_id,
+			"meeting_id": self.meeting.name,
+			"guest_name": "Realtime Guest",
+		}
+		self.meeting.append("banned_users", {"user": guest_id})
+		self.meeting.save(ignore_permissions=True)
+
+		result = get_approved_guest_connection_details(self.meeting.name, guest_id)
+
+		self.assertEqual(result["status"], "rejected")
 
 	def test_sfu_token_includes_site_claim(self):
 		"""The SFU JWT must carry the source site so the SFU can namespace rooms
