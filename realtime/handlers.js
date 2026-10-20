@@ -1,10 +1,8 @@
+const { frappe_request } = require("../../frappe/realtime/utils");
+
 const guest_room = (guest_id) => `guest:${guest_id}`;
 
 const meet_handlers = (socket) => {
-	socket.on("ping", () => {
-		socket.emit("pong");
-	});
-
 	// guest specific rooms
 	socket.on("guest_subscribe", async (guest_id, acknowledge) => {
 		const respond = (result) => {
@@ -21,12 +19,11 @@ const meet_handlers = (socket) => {
 		}
 
 		// session validation for guest
-		socket
-			.frappe_request("/api/method/meet.api.meeting.validate_guest_session", {
-				guest_id: guest_id,
-			})
-			.then((res) => res.json())
-			.then(({ message }) => {
+		frappe_request("/api/method/meet.api.meeting.validate_guest_session", socket)
+			.type("form")
+			.query({ guest_id })
+			.then((res) => {
+				const message = res.body?.message;
 				if (!message?.valid) {
 					respond({ joined: false });
 					return;
@@ -69,10 +66,16 @@ const meet_handlers = (socket) => {
 
 		Promise.resolve(socket.join(`meeting:${meeting_id}`))
 			.then(() => {
-				return socket
-					.frappe_request("/api/method/meet.api.meeting.check_is_host", checkParams)
-					.then((res) => res.json())
-					.then(async ({ message }) => {
+				return frappe_request(
+					"/api/method/meet.api.meeting.check_is_host",
+					socket,
+				)
+					.type("form")
+					.query(checkParams)
+					.then((res) => {
+						return res.body?.message;
+					})
+					.then(async (message) => {
 						const is_host = message === true || message?.is_host === true;
 						if (is_host) {
 							await socket.join(`meeting:${meeting_id}:hosts`);

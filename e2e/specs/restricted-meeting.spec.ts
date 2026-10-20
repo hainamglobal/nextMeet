@@ -29,6 +29,12 @@ test.describe("Restricted meeting", () => {
 
 		await hostPage.getByTestId("toolbar-people").click();
 		await expect(hostPage.getByTestId("people-panel")).toBeVisible();
+		await expect(
+			hostPage
+				.getByTestId("people-panel")
+				.locator("[data-testid^='waiting-user-']")
+				.filter({ hasText: guestName }),
+		).toBeVisible({ timeout: lobbyTransitionTimeout });
 		await hostPage.getByRole("button", { name: "Admit all" }).click();
 
 		await expect(guest.page.getByTestId("meeting-layout")).toBeVisible();
