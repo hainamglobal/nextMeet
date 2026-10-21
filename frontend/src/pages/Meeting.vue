@@ -291,8 +291,7 @@ const lobbyUsersForNotifications = computed(() => {
 
 // --- Guest session ---
 const isGuestSession = computed(
-	() =>
-		!!connectionState.guestAuthToken || lobbyStore.isWaitingForApproval,
+	() => !!connectionState.guestAuthToken || lobbyStore.isWaitingForApproval,
 );
 
 // --- SFU Connection ---

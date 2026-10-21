@@ -40,12 +40,12 @@
 							>
 								<div class="text-center text-white">
 									<MeetingAvatar
-										:label="userInitials"
-										:image="userAvatar"
+										:label="previewUserInitials"
+										:image="isGuest ? '' : userAvatar"
 										:tiles="1"
 										class="mx-auto mb-4 w-20 h-20"
 									/>
-									<p class="text-xl font-medium">{{ currentUserName }}</p>
+									<p class="text-xl font-medium">{{ previewUserName }}</p>
 								</div>
 							</div>
 
@@ -142,6 +142,7 @@ import { useMeetingPreviewPresence } from "../composables/useMeetingPreviewPrese
 import { session } from "../data/session";
 import FrappeMeetingLogo from "../icons/FrappeMeetingLogo.vue";
 import { getErrorMessage } from "../utils/error";
+import { getInitials } from "../utils/text";
 import MeetingAvatar from "./MeetingAvatar.vue";
 
 function redirectToLogin() {
@@ -211,6 +212,16 @@ const isGuest = computed(
 	() =>
 		!props.guestAuthToken &&
 		(!session.isLoggedIn || Boolean(nextgrpName.value)),
+);
+const previewUserName = computed(() =>
+	isGuest.value && guestName.value.trim()
+		? guestName.value.trim()
+		: props.currentUserName || "You",
+);
+const previewUserInitials = computed(() =>
+	isGuest.value && guestName.value.trim()
+		? getInitials(guestName.value.trim())
+		: props.userInitials || "Y",
 );
 
 const { participants, error: presenceError } = useMeetingPreviewPresence(
