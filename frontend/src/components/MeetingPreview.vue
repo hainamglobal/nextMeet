@@ -182,15 +182,15 @@ const emit = defineEmits<{
 
 const guestName = ref("");
 const nextgrpDomainEntry = ref("");
+const nextgrpName = ref("");
 
 onMounted(() => {
 	const joinContext = new URLSearchParams(window.location.hash.slice(1));
-	const nextgrpName = joinContext.get("nextgrp_name")?.trim();
+	nextgrpName.value = joinContext.get("nextgrp_name")?.trim() || "";
 	nextgrpDomainEntry.value = joinContext.get("nextgrp_entry")?.trim() || "";
 	const savedGuestName = localStorage.getItem("guest_name");
-	if (!session.isLoggedIn) {
-		guestName.value = nextgrpName || savedGuestName || "";
-	}
+	guestName.value =
+		nextgrpName.value || (!session.isLoggedIn ? savedGuestName : "") || "";
 });
 const guestNameInputRef = ref<VideoElement | null>(null);
 
@@ -207,7 +207,11 @@ const joinGuestAPI = createResource({
 
 const meetingTitle = inject("meetingTitle");
 
-const isGuest = computed(() => !session.isLoggedIn && !props.guestAuthToken);
+const isGuest = computed(
+	() =>
+		!props.guestAuthToken &&
+		(!session.isLoggedIn || Boolean(nextgrpName.value)),
+);
 
 const { participants, error: presenceError } = useMeetingPreviewPresence(
 	props.meetingId,
