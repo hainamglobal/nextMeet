@@ -128,6 +128,47 @@ def create(
 	return meeting.name
 
 
+def _get_mtp_managed_meeting(meeting_id: str, expected_host_name: str | None, actor_email: str):
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	if (meeting.host_name or "").strip().lower().rstrip(".") != host_name:
+		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
+	if not actor_email or (meeting.created_by_email or "").strip().lower() != actor_email.strip().lower():
+		frappe.throw(_("Only the meeting creator can manage this meeting"), frappe.PermissionError)
+	return meeting
+
+
+@frappe.whitelist()
+def update_meeting_title(
+	meeting_id: str,
+	meeting_title: str,
+	actor_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	title = (meeting_title or "").strip()
+	if not title:
+		frappe.throw(_("Meeting title is required"), frappe.ValidationError)
+	if len(title) > 140:
+		frappe.throw(_("Meeting title cannot exceed 140 characters"), frappe.ValidationError)
+	meeting.meeting_title = title
+	meeting.save(ignore_permissions=True)
+	return {"name": meeting.name, "meeting_title": meeting.meeting_title}
+
+
+@frappe.whitelist()
+def delete_mtp_meeting(
+	meeting_id: str,
+	actor_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	frappe.delete_doc("Sae Meeting", meeting.name, ignore_permissions=True)
+	return {"deleted": True, "name": meeting_id}
+
+
 def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
 	"""Relay a newly created meeting to its registered MTP site."""
 	host_name = (host_name or "").strip().lower().rstrip(".")
