@@ -14,6 +14,7 @@ from meet.api.meeting import (
 	get_approved_guest_connection_details,
 	get_join_status,
 	get_sfu_connection_details,
+	delete_mtp_meeting,
 )
 
 
@@ -73,6 +74,27 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 
 		with self.assertRaises(frappe.PermissionError):
 			get_sfu_connection_details(self.meeting.name)
+
+	def test_mtp_meeting_delete_is_soft_and_only_creator_can_delete(self):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.save(ignore_permissions=True)
+
+		with self.assertRaises(frappe.PermissionError):
+			delete_mtp_meeting(self.meeting.name, actor_email=self.member_email, expected_host_name=frappe.local.site)
+
+		self.assertFalse(self.meeting.reload().is_deleted)
+
+		result = delete_mtp_meeting(
+			self.meeting.name,
+			actor_email=self.host_email,
+			expected_host_name=frappe.local.site,
+		)
+
+		self.assertTrue(result["deleted"])
+		self.assertTrue(frappe.db.exists("Sae Meeting", self.meeting.name))
+		self.assertTrue(self.meeting.reload().is_deleted)
+		self.assertFalse(self.meeting.can_join(self.host_email))
 
 	def test_restricted_meeting_creator_joins_without_approval(self):
 		self.meeting.created_by_email = self.member_email

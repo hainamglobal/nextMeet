@@ -31,6 +31,9 @@ class SaeMeeting(Document):
 		created_by_email: DF.Data
 		host_name: DF.Data
 		allow_guest: DF.Check
+		is_deleted: DF.Check
+		deleted_by: DF.Data
+		deleted_on: DF.Datetime
 		banned_users: DF.Table[SaeMeetingUser]
 		co_hosts: DF.Table[SaeMeetingUser]
 		meeting_type: DF.Literal["open", "restricted"]
@@ -226,7 +229,7 @@ class SaeMeeting(Document):
 		if not user:
 			user = frappe.session.user
 
-		return not self.is_user_banned(user)
+		return not self.is_deleted and not self.is_user_banned(user)
 
 	def update_members(self, members_list):
 		"""Update members list and save"""

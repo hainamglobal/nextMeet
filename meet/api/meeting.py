@@ -12,6 +12,7 @@ import jwt
 import requests
 from frappe import _
 from frappe.rate_limiter import rate_limit
+from frappe.utils import now_datetime
 
 from meet.utils.sfu_config import (
 	get_sfu_config,
@@ -135,6 +136,8 @@ def _get_mtp_managed_meeting(meeting_id: str, expected_host_name: str | None, ac
 	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
 	if (meeting.host_name or "").strip().lower().rstrip(".") != host_name:
 		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
+	if meeting.is_deleted:
+		frappe.throw(_("Meeting is no longer available"), frappe.DoesNotExistError)
 	if not actor_email or (meeting.created_by_email or "").strip().lower() != actor_email.strip().lower():
 		frappe.throw(_("Only the meeting creator can manage this meeting"), frappe.PermissionError)
 	return meeting
@@ -165,7 +168,11 @@ def delete_mtp_meeting(
 	expected_host_name: str | None = None,
 ) -> dict:
 	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
-	frappe.delete_doc("Sae Meeting", meeting.name, ignore_permissions=True)
+	if not meeting.is_deleted:
+		meeting.is_deleted = 1
+		meeting.deleted_by = actor_email.strip().lower()
+		meeting.deleted_on = now_datetime()
+		meeting.save(ignore_permissions=True)
 	return {"deleted": True, "name": meeting_id}
 
 
@@ -452,6 +459,8 @@ def refresh_sfu_token(meeting_id: str) -> dict:
 
 	if frappe.session.user not in meeting.get_members():
 		frappe.throw(_("Not a meeting member"))
+	if not meeting.can_join(frappe.session.user):
+		frappe.throw(_("Meeting is no longer available"), frappe.PermissionError)
 
 	user_fullname, user_avatar = frappe.db.get_value(
 		"User", frappe.session.user, ["full_name", "user_image"]
@@ -537,7 +546,7 @@ def get_presence_counts(meeting_ids, expected_host_name: str | None = None) -> d
 	owned_meetings = set(
 		frappe.get_all(
 			"Sae Meeting",
-			filters={"name": ["in", meeting_ids], "host_name": host_name},
+			filters={"name": ["in", meeting_ids], "host_name": host_name, "is_deleted": 0},
 			pluck="name",
 		)
 	)
@@ -708,6 +717,8 @@ def join_meeting_as_guest(
 		frappe.throw(_("Meeting not found"))
 
 	meeting = frappe.get_doc("Sae Meeting", meeting_id)
+	if meeting.is_deleted:
+		frappe.throw(_("Meeting is no longer available"), frappe.PermissionError)
 
 	global_settings = frappe.get_cached_doc("Sae Settings")
 	if not global_settings.allow_guest or not meeting.allow_guest:
@@ -853,6 +864,8 @@ def get_approved_guest_connection_details(meeting_id: str, guest_id: str) -> dic
 		frappe.throw(_("Meeting not found"))
 
 	meeting = frappe.get_doc("Sae Meeting", meeting_id)
+	if meeting.is_deleted:
+		frappe.throw(_("Meeting is no longer available"), frappe.PermissionError)
 	if session_data.get("meeting_id") != meeting_id:
 		frappe.throw(_("Guest session does not belong to this meeting"), frappe.PermissionError)
 

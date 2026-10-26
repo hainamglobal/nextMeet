@@ -13,6 +13,9 @@
   "meeting_type",
   "allow_guest",
   "host_only_chat",
+  "is_deleted",
+  "deleted_by",
+  "deleted_on",
   "members",
   "co_hosts",
   "waiting_room",
@@ -70,6 +73,28 @@
     "fieldname":"host_only_chat",
     "fieldtype":"Check",
     "label": "Host Only Chat"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_deleted",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Deleted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deleted_by",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Deleted By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deleted_on",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Deleted On",
+   "read_only": 1
   },
   {
    "fieldname": "members",
