@@ -16,6 +16,7 @@
   "is_deleted",
   "deleted_by",
   "deleted_on",
+  "invitations",
   "members",
   "co_hosts",
   "waiting_room",
@@ -94,6 +95,13 @@
    "fieldtype": "Datetime",
    "hidden": 1,
    "label": "Deleted On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invitations",
+   "fieldtype": "Table",
+   "label": "Invitations",
+   "options": "Sae Meeting Invitation",
    "read_only": 1
   },
   {

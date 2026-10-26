@@ -25,6 +25,7 @@ class SaeMeeting(Document):
 		from frappe.types import DF
 
 		from meet.meet.doctype.sae_meeting_user.sae_meeting_user import SaeMeetingUser
+		from meet.meet.doctype.sae_meeting_invitation.sae_meeting_invitation import SaeMeetingInvitation
 
 		meeting_title: DF.Data
 		created_by_name: DF.Data
@@ -32,6 +33,7 @@ class SaeMeeting(Document):
 		host_name: DF.Data
 		allow_guest: DF.Check
 		is_deleted: DF.Check
+		invitations: DF.Table[SaeMeetingInvitation]
 		deleted_by: DF.Data
 		deleted_on: DF.Datetime
 		banned_users: DF.Table[SaeMeetingUser]

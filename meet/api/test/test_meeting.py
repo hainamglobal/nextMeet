@@ -15,6 +15,10 @@ from meet.api.meeting import (
 	get_join_status,
 	get_sfu_connection_details,
 	delete_mtp_meeting,
+	invite_meeting_user,
+	get_my_meeting_invitations,
+	respond_meeting_invitation,
+	_has_accepted_invitation,
 )
 
 
@@ -95,6 +99,37 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertTrue(frappe.db.exists("Sae Meeting", self.meeting.name))
 		self.assertTrue(self.meeting.reload().is_deleted)
 		self.assertFalse(self.meeting.can_join(self.host_email))
+
+	@patch("meet.api.meeting._publish_meeting_invitation")
+	def test_meeting_invitation_is_delivered_and_response_is_recorded(self, publish_invitation):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.save(ignore_permissions=True)
+		frappe.set_user(self.host_email)
+
+		invitation = invite_meeting_user(
+			self.meeting.name,
+			self.member_email,
+			actor_email=self.host_email,
+			actor_name="Meeting Host",
+			expected_host_name=frappe.local.site,
+		)
+		publish_invitation.assert_called_once()
+		self.assertEqual(invitation["status"], "Invited")
+		self.assertEqual(len(get_my_meeting_invitations(self.member_email, frappe.local.site)), 1)
+
+		frappe.set_user(self.member_email)
+		result = respond_meeting_invitation(
+			self.meeting.name,
+			invitation["invitation_id"],
+			"Accepted",
+			invitee_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		self.assertEqual(result["status"], "Accepted")
+		self.meeting.reload()
+		self.assertTrue(_has_accepted_invitation(self.meeting, self.member_email))
+		self.assertEqual(self.meeting.invitations[0].status, "Accepted")
 
 	def test_restricted_meeting_creator_joins_without_approval(self):
 		self.meeting.created_by_email = self.member_email

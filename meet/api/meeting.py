@@ -176,6 +176,188 @@ def delete_mtp_meeting(
 	return {"deleted": True, "name": meeting_id}
 
 
+def _publish_meeting_invitation(meeting, invitation):
+	callback = frappe.db.get_value(
+		"Meet Domain", meeting.host_name, ["callback_url", "callback_secret"], as_dict=True
+	)
+	if not callback:
+		frappe.throw(_("No realtime callback is registered for this MTP site"), frappe.ValidationError)
+	timestamp = int(time.time())
+	payload = {
+		"host_name": meeting.host_name,
+		"event_type": "meeting_invitation",
+		"meeting_id": meeting.name,
+		"invitation_id": invitation.invitation_id,
+		"invitee_email": invitation.invitee_email,
+		"invitee_name": invitation.invitee_name,
+		"invited_by": invitation.invited_by,
+		"invited_by_name": invitation.invited_by_name,
+		"title": meeting.meeting_title,
+		"timestamp": timestamp,
+	}
+	signature_payload = "\n".join(
+		[
+			payload["host_name"], payload["meeting_id"], payload["invitation_id"],
+			payload["invitee_email"], payload["invitee_name"], payload["invited_by"],
+			payload["invited_by_name"],
+			payload["title"] or "", str(timestamp),
+		]
+	).encode()
+	signature = hmac.new(
+		callback.callback_secret.encode(), signature_payload, hashlib.sha256
+	).hexdigest()
+	_relay_presence_callback(callback.callback_url, payload, signature)
+
+
+def _publish_meeting_invitation_response(meeting, invitation):
+	callback = frappe.db.get_value(
+		"Meet Domain", meeting.host_name, ["callback_url", "callback_secret"], as_dict=True
+	)
+	if not callback:
+		return
+	timestamp = int(time.time())
+	payload = {
+		"host_name": meeting.host_name,
+		"event_type": "meeting_invitation_response",
+		"meeting_id": meeting.name,
+		"invitation_id": invitation.invitation_id,
+		"invitee_email": invitation.invitee_email,
+		"invited_by": invitation.invited_by,
+		"invitation_status": invitation.status,
+		"timestamp": timestamp,
+	}
+	signature_payload = "\n".join(
+		[
+			payload["host_name"], payload["meeting_id"], payload["invitation_id"],
+			payload["invitee_email"], payload["invited_by"],
+			payload["invitation_status"], str(timestamp),
+		]
+	).encode()
+	signature = hmac.new(
+		callback.callback_secret.encode(), signature_payload, hashlib.sha256
+	).hexdigest()
+	_relay_presence_callback(callback.callback_url, payload, signature)
+
+
+@frappe.whitelist()
+def invite_meeting_user(
+	meeting_id: str,
+	invitee_email: str,
+	actor_email: str,
+	actor_name: str = "",
+	expected_host_name: str | None = None,
+) -> dict:
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	invitee_email = (invitee_email or "").strip().lower()
+	if not invitee_email or "@" not in invitee_email:
+		frappe.throw(_("A valid user email is required"), frappe.ValidationError)
+	if invitee_email == (meeting.created_by_email or "").strip().lower():
+		frappe.throw(_("The meeting host is already a member"), frappe.ValidationError)
+	for row in meeting.invitations or []:
+		if row.invitee_email == invitee_email and row.status == "Invited":
+			frappe.throw(_("This user already has a pending invitation"), frappe.ValidationError)
+	invitation_id = secrets.token_urlsafe(18)
+	invitation = meeting.append("invitations", {
+		"invitation_id": invitation_id,
+		"invitee_email": invitee_email,
+		"invitee_name": invitee_email,
+		"invited_by": actor_email.strip().lower(),
+		"invited_by_name": (actor_name or meeting.created_by_name or actor_email).strip()[:140],
+		"status": "Invited",
+		"invited_on": frappe.utils.now_datetime(),
+	})
+	meeting.save(ignore_permissions=True)
+	_publish_meeting_invitation(meeting, invitation)
+	return {
+		"invitation_id": invitation_id,
+		"invitee_email": invitee_email,
+		"invitee_name": invitation.invitee_name,
+		"invited_by_name": invitation.invited_by_name,
+		"invited_on": invitation.invited_on,
+		"meeting_id": meeting.name,
+		"meeting_title": meeting.meeting_title,
+		"status": invitation.status,
+	}
+
+
+@frappe.whitelist()
+def get_my_meeting_invitations(
+	invitee_email: str, expected_host_name: str | None = None
+) -> list[dict]:
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+	invitee_email = (invitee_email or "").strip().lower()
+	if not invitee_email:
+		return []
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	meeting_ids = frappe.get_all(
+		"Sae Meeting", filters={"host_name": host_name, "is_deleted": 0}, pluck="name"
+	)
+	if not meeting_ids:
+		return []
+	rows = frappe.get_all(
+		"Sae Meeting Invitation",
+		filters={
+			"invitee_email": invitee_email,
+			"status": "Invited",
+			"parenttype": "Sae Meeting",
+			"parent": ["in", meeting_ids],
+		},
+		fields=["invitation_id", "invitee_email", "invitee_name", "invited_by_name", "parent"],
+		order_by="creation desc",
+		limit=50,
+	)
+	return [
+		{
+			"invitation_id": row.invitation_id,
+			"invitee_email": row.invitee_email,
+			"invitee_name": row.invitee_name,
+			"invited_by_name": row.invited_by_name,
+			"meeting_id": row.parent,
+			"meeting_title": frappe.db.get_value("Sae Meeting", row.parent, "meeting_title"),
+		}
+		for row in rows
+	]
+
+
+@frappe.whitelist()
+def respond_meeting_invitation(
+	meeting_id: str,
+	invitation_id: str,
+	response: str,
+	invitee_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	if response not in {"Accepted", "Declined"}:
+		frappe.throw(_("Invalid invitation response"), frappe.ValidationError)
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	if (meeting.host_name or "").strip().lower().rstrip(".") != (
+		(expected_host_name or "").strip().lower().rstrip(".")
+	):
+		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
+	if meeting.is_deleted:
+		frappe.throw(_("Meeting is no longer available"), frappe.PermissionError)
+	email = (invitee_email or "").strip().lower()
+	invitation = next((row for row in meeting.invitations or [] if row.invitation_id == invitation_id), None)
+	if not invitation or invitation.invitee_email != email:
+		frappe.throw(_("Invitation not found for this user"), frappe.PermissionError)
+	if invitation.status != "Invited":
+		frappe.throw(_("This invitation has already been answered"), frappe.ValidationError)
+	invitation.status = response
+	invitation.responded_on = frappe.utils.now_datetime()
+	meeting.save(ignore_permissions=True)
+	_publish_meeting_invitation_response(meeting, invitation)
+	return {"meeting_id": meeting_id, "invitation_id": invitation_id, "status": response}
+
+
+def _has_accepted_invitation(meeting: "SaeMeeting", invitee_email: str) -> bool:
+	email = (invitee_email or "").strip().lower()
+	return any(
+		(row.invitee_email or "").strip().lower() == email and row.status == "Accepted"
+		for row in meeting.invitations or []
+	)
+
+
 def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
 	"""Relay a newly created meeting to its registered MTP site."""
 	host_name = (host_name or "").strip().lower().rstrip(".")
@@ -748,10 +930,15 @@ def join_meeting_as_guest(
 		entry = frappe.db.get_value(
 			"User Domain",
 			domain_entry,
-			["meeting", "user_email", "user_name", "joined_at"],
+			["meeting", "host_name", "user_email", "user_name", "joined_at"],
 			as_dict=True,
 		)
-		if entry and entry.meeting == meeting_id:
+		if (
+			entry
+			and entry.meeting == meeting_id
+			and (entry.host_name or "").strip().lower().rstrip(".")
+			== (meeting.host_name or "").strip().lower().rstrip(".")
+		):
 			domain_email = (entry.user_email or "").strip().lower()
 			if (not guest_name_clean or not guest_name_clean.strip()) and entry.user_name:
 				guest_name_clean = entry.user_name.strip()
@@ -764,6 +951,7 @@ def join_meeting_as_guest(
 	)
 	if not is_creator and session_data and (session_data.get("is_creator") or session_data.get("is_host")):
 		is_creator = True
+	is_invited = bool(domain_email and _has_accepted_invitation(meeting, domain_email))
 
 	# Store / update guest session
 	session_payload = {
@@ -779,8 +967,8 @@ def join_meeting_as_guest(
 	set_guest_session(guest_id, session_payload, ttl=24 * 3600)
 
 	if meeting.meeting_type == "restricted":
-		if meeting.is_user_approved(guest_id) or is_creator:
-			if is_creator and guest_id not in meeting.get_members():
+		if meeting.is_user_approved(guest_id) or is_creator or is_invited:
+			if (is_creator or is_invited) and guest_id not in meeting.get_members():
 				meeting.add_guest_to_members(guest_id)
 			from meet.api.integration import record_meeting_guest
 
