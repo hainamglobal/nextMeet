@@ -21,7 +21,7 @@
   {"fieldname": "invitee_name", "fieldtype": "Data", "in_list_view": 1, "label": "Invitee Name", "read_only": 1},
   {"fieldname": "invited_by", "fieldtype": "Data", "label": "Invited By", "read_only": 1},
   {"fieldname": "invited_by_name", "fieldtype": "Data", "label": "Invited By Name", "read_only": 1},
-  {"default": "Invited", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Invited\nAccepted\nDeclined", "read_only": 1, "reqd": 1},
+  {"default": "Invited", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Invited\nAccepted\nDeclined\nExpired", "read_only": 1, "reqd": 1},
   {"fieldname": "invited_on", "fieldtype": "Datetime", "label": "Invited On", "read_only": 1},
   {"fieldname": "responded_on", "fieldtype": "Datetime", "label": "Responded On", "read_only": 1}
  ],

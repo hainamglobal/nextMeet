@@ -5,6 +5,7 @@ import secrets
 import time
 import hashlib
 import hmac
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import frappe
@@ -12,7 +13,7 @@ import jwt
 import requests
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import now_datetime
+from frappe.utils import get_datetime, now_datetime
 
 from meet.utils.sfu_config import (
 	get_sfu_config,
@@ -144,6 +145,24 @@ def _get_mtp_managed_meeting(meeting_id: str, expected_host_name: str | None, ac
 
 
 @frappe.whitelist()
+def can_invite_meeting_users(
+	meeting_id: str,
+	actor_email: str,
+	expected_host_name: str | None = None,
+) -> bool:
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	return bool(
+		not meeting.is_deleted
+		and (meeting.host_name or "").strip().lower().rstrip(".") == host_name
+		and actor_email
+		and (meeting.created_by_email or "").strip().lower() == actor_email.strip().lower()
+	)
+
+
+@frappe.whitelist()
 def update_meeting_title(
 	meeting_id: str,
 	meeting_title: str,
@@ -176,69 +195,6 @@ def delete_mtp_meeting(
 	return {"deleted": True, "name": meeting_id}
 
 
-def _publish_meeting_invitation(meeting, invitation):
-	callback = frappe.db.get_value(
-		"Meet Domain", meeting.host_name, ["callback_url", "callback_secret"], as_dict=True
-	)
-	if not callback:
-		frappe.throw(_("No realtime callback is registered for this MTP site"), frappe.ValidationError)
-	timestamp = int(time.time())
-	payload = {
-		"host_name": meeting.host_name,
-		"event_type": "meeting_invitation",
-		"meeting_id": meeting.name,
-		"invitation_id": invitation.invitation_id,
-		"invitee_email": invitation.invitee_email,
-		"invitee_name": invitation.invitee_name,
-		"invited_by": invitation.invited_by,
-		"invited_by_name": invitation.invited_by_name,
-		"title": meeting.meeting_title,
-		"timestamp": timestamp,
-	}
-	signature_payload = "\n".join(
-		[
-			payload["host_name"], payload["meeting_id"], payload["invitation_id"],
-			payload["invitee_email"], payload["invitee_name"], payload["invited_by"],
-			payload["invited_by_name"],
-			payload["title"] or "", str(timestamp),
-		]
-	).encode()
-	signature = hmac.new(
-		callback.callback_secret.encode(), signature_payload, hashlib.sha256
-	).hexdigest()
-	_relay_presence_callback(callback.callback_url, payload, signature)
-
-
-def _publish_meeting_invitation_response(meeting, invitation):
-	callback = frappe.db.get_value(
-		"Meet Domain", meeting.host_name, ["callback_url", "callback_secret"], as_dict=True
-	)
-	if not callback:
-		return
-	timestamp = int(time.time())
-	payload = {
-		"host_name": meeting.host_name,
-		"event_type": "meeting_invitation_response",
-		"meeting_id": meeting.name,
-		"invitation_id": invitation.invitation_id,
-		"invitee_email": invitation.invitee_email,
-		"invited_by": invitation.invited_by,
-		"invitation_status": invitation.status,
-		"timestamp": timestamp,
-	}
-	signature_payload = "\n".join(
-		[
-			payload["host_name"], payload["meeting_id"], payload["invitation_id"],
-			payload["invitee_email"], payload["invited_by"],
-			payload["invitation_status"], str(timestamp),
-		]
-	).encode()
-	signature = hmac.new(
-		callback.callback_secret.encode(), signature_payload, hashlib.sha256
-	).hexdigest()
-	_relay_presence_callback(callback.callback_url, payload, signature)
-
-
 @frappe.whitelist()
 def invite_meeting_user(
 	meeting_id: str,
@@ -253,7 +209,11 @@ def invite_meeting_user(
 		frappe.throw(_("A valid user email is required"), frappe.ValidationError)
 	if invitee_email == (meeting.created_by_email or "").strip().lower():
 		frappe.throw(_("The meeting host is already a member"), frappe.ValidationError)
+	now = now_datetime()
 	for row in meeting.invitations or []:
+		if row.status == "Invited" and _invitation_expired(row, now):
+			row.status = "Expired"
+			row.responded_on = _invitation_expiration(row)
 		if row.invitee_email == invitee_email and row.status == "Invited":
 			frappe.throw(_("This user already has a pending invitation"), frappe.ValidationError)
 	invitation_id = secrets.token_urlsafe(18)
@@ -264,10 +224,9 @@ def invite_meeting_user(
 		"invited_by": actor_email.strip().lower(),
 		"invited_by_name": (actor_name or meeting.created_by_name or actor_email).strip()[:140],
 		"status": "Invited",
-		"invited_on": frappe.utils.now_datetime(),
+		"invited_on": now,
 	})
 	meeting.save(ignore_permissions=True)
-	_publish_meeting_invitation(meeting, invitation)
 	return {
 		"invitation_id": invitation_id,
 		"invitee_email": invitee_email,
@@ -303,20 +262,33 @@ def get_my_meeting_invitations(
 			"parenttype": "Sae Meeting",
 			"parent": ["in", meeting_ids],
 		},
-		fields=["invitation_id", "invitee_email", "invitee_name", "invited_by_name", "parent"],
+		fields=["name", "invitation_id", "invitee_email", "invitee_name", "invited_by_name", "invited_on", "parent"],
 		order_by="creation desc",
-		limit=50,
+		limit=500,
 	)
+	now = now_datetime()
+	active_rows = []
+	for row in rows:
+		if _invitation_expired(row, now):
+			frappe.db.set_value(
+				"Sae Meeting Invitation",
+				row.name,
+				{"status": "Expired", "responded_on": _invitation_expiration(row)},
+				update_modified=False,
+			)
+		else:
+			active_rows.append(row)
 	return [
 		{
 			"invitation_id": row.invitation_id,
 			"invitee_email": row.invitee_email,
 			"invitee_name": row.invitee_name,
 			"invited_by_name": row.invited_by_name,
+			"invited_on": row.invited_on,
 			"meeting_id": row.parent,
 			"meeting_title": frappe.db.get_value("Sae Meeting", row.parent, "meeting_title"),
 		}
-		for row in rows
+		for row in active_rows
 	]
 
 
@@ -343,11 +315,25 @@ def respond_meeting_invitation(
 		frappe.throw(_("Invitation not found for this user"), frappe.PermissionError)
 	if invitation.status != "Invited":
 		frappe.throw(_("This invitation has already been answered"), frappe.ValidationError)
+	if _invitation_expired(invitation, now_datetime()):
+		invitation.status = "Expired"
+		invitation.responded_on = _invitation_expiration(invitation)
+		meeting.save(ignore_permissions=True)
+		return {
+			"meeting_id": meeting_id,
+			"invitation_id": invitation_id,
+			"status": "Expired",
+			"invited_by": invitation.invited_by,
+		}
 	invitation.status = response
 	invitation.responded_on = frappe.utils.now_datetime()
 	meeting.save(ignore_permissions=True)
-	_publish_meeting_invitation_response(meeting, invitation)
-	return {"meeting_id": meeting_id, "invitation_id": invitation_id, "status": response}
+	return {
+		"meeting_id": meeting_id,
+		"invitation_id": invitation_id,
+		"status": response,
+		"invited_by": invitation.invited_by,
+	}
 
 
 def _has_accepted_invitation(meeting: "SaeMeeting", invitee_email: str) -> bool:
@@ -356,6 +342,16 @@ def _has_accepted_invitation(meeting: "SaeMeeting", invitee_email: str) -> bool:
 		(row.invitee_email or "").strip().lower() == email and row.status == "Accepted"
 		for row in meeting.invitations or []
 	)
+
+
+def _invitation_expired(invitation, now=None) -> bool:
+	if not invitation.invited_on:
+		return False
+	return (now or now_datetime()) >= _invitation_expiration(invitation)
+
+
+def _invitation_expiration(invitation):
+	return get_datetime(invitation.invited_on) + timedelta(minutes=5)
 
 
 def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):

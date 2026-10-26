@@ -23,6 +23,10 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.reject_join_request",
 	"meet.api.meeting.promote_to_cohost",
 	"meet.api.meeting.check_meeting_access",
+	"meet.api.meeting.can_invite_meeting_users",
+	"meet.api.meeting.invite_meeting_user",
+	"meet.api.meeting.get_my_meeting_invitations",
+	"meet.api.meeting.respond_meeting_invitation",
 	"meet.api.integration.record_user_domain",
 }
 
@@ -45,6 +49,14 @@ def request(method_name, params):
 	elif method_name == "meet.api.meeting.get_sfu_presence_preview_token":
 		params["expected_host_name"] = site_host_name
 	elif method_name == "meet.api.meeting.get_presence_counts":
+		params["expected_host_name"] = site_host_name
+	elif method_name == "meet.api.meeting.can_invite_meeting_users":
+		params["expected_host_name"] = site_host_name
+	elif method_name in {
+		"meet.api.meeting.invite_meeting_user",
+		"meet.api.meeting.get_my_meeting_invitations",
+		"meet.api.meeting.respond_meeting_invitation",
+	}:
 		params["expected_host_name"] = site_host_name
 	elif method_name == "frappe.client.get_list" and params.get("doctype") == "Sae Meeting":
 		filters = params.get("filters") or {}
