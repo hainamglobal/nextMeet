@@ -22,7 +22,7 @@
 					:class="{
 						'!bg-[#e54e17] hover:!bg-[#e54e17]': !isMicOn,
 					}"
-					:title="`Toggle Audio (${$platform === 'mac' ? '⌘+D' : 'Ctrl+D'})`"
+					:title="`Bật/Tắt Micro (${$platform === 'mac' ? '⌘+D' : 'Ctrl+D'})`"
 				>
 					<template #icon>
 						<lucide-mic-off v-if="!isMicOn" class="w-5 h-5 text-white" />
@@ -40,7 +40,7 @@
 					:class="{
 						'!bg-[#e54e17] hover:!bg-[#e54e17]': !isCameraOn,
 					}"
-					:title="`Toggle Video (${$platform === 'mac' ? '⌘+E' : 'Ctrl+E'})`"
+					:title="`Bật/Tắt Camera (${$platform === 'mac' ? '⌘+E' : 'Ctrl+E'})`"
 				>
 					<template #icon>
 						<lucide-video-off v-if="!isCameraOn" class="w-5 h-5 text-white" />
@@ -56,7 +56,7 @@
 					theme="gray"
 					size="2xl"
 					class="!rounded-full p-0 !bg-opacity-90 hover:!bg-opacity-100 transition-all duration-200 hover:scale-105 active:scale-95"
-					title="Settings"
+					title="Cài đặt"
 				>
 					<template #icon>
 						<lucide-settings class="w-5 h-5 text-white" />

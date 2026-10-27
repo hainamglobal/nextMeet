@@ -4,16 +4,8 @@
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2 cursor-pointer" @click="$router.push('/')">
 					<FrappeMeetingLogo class="h-8" />
-					<h4 class="text-gray-900 text-base">Frappe Meet</h4>
+					<h4 class="text-gray-900 text-base font-semibold">NextMeet</h4>
 				</div>
-				<Button
-					v-if="!session.isLoggedIn"
-					variant="ghost"
-					size="sm"
-					@click="redirectToLogin"
-				>
-					Sign In
-				</Button>
 			</div>
 		</div>
 
@@ -78,7 +70,7 @@
 						</div>
 
 						<h2 class="text-3xl text-gray-900 mb-3">
-							<span class="text-gray-900"> Ready to join? </span>
+							<span class="text-gray-900"> Sẵn sàng tham gia? </span>
 						</h2>
 
 						<div v-if="meetingTitle" class="bg-gray-50 rounded-lg px-4 py-3 mb-4">
@@ -102,8 +94,8 @@
 									ref="guestNameInputRef"
 									v-model="guestName"
 									type="text"
-									label="Your name"
-									placeholder="John Doe"
+									label="Tên của bạn"
+									placeholder="Nhập họ và tên..."
 									:maxlength="50"
 									autocomplete="off"
 									data-testid="guest-name-input"
@@ -122,7 +114,7 @@
 									<template #prefix>
 										<lucide-video class="w-5 h-5" />
 									</template>
-									Join Meeting
+									Tham gia cuộc họp
 								</Button>
 							</form>
 						</div>
@@ -216,12 +208,12 @@ const isGuest = computed(
 const previewUserName = computed(() =>
 	isGuest.value && guestName.value.trim()
 		? guestName.value.trim()
-		: props.currentUserName || "You",
+		: props.currentUserName || "Bạn",
 );
 const previewUserInitials = computed(() =>
 	isGuest.value && guestName.value.trim()
 		? getInitials(guestName.value.trim())
-		: props.userInitials || "Y",
+		: props.userInitials || "B",
 );
 
 const { participants, error: presenceError } = useMeetingPreviewPresence(
@@ -263,7 +255,7 @@ const handleJoin = async () => {
 		} catch (error) {
 			console.error("Failed to join as guest:", error);
 			const errorMessage =
-				getErrorMessage(error) || "Failed to join meeting as guest.";
+				getErrorMessage(error) || "Không thể tham gia cuộc họp.";
 			toast.error(errorMessage);
 		}
 	} else {

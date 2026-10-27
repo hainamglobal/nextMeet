@@ -929,12 +929,11 @@ def join_meeting_as_guest(
 			["meeting", "host_name", "user_email", "user_name", "joined_at"],
 			as_dict=True,
 		)
-		if (
-			entry
-			and entry.meeting == meeting_id
-			and (entry.host_name or "").strip().lower().rstrip(".")
-			== (meeting.host_name or "").strip().lower().rstrip(".")
-		):
+		if entry:
+			if entry.meeting != meeting_id:
+				frappe.throw(_("Thông tin xác thực không khớp với cuộc họp này"), frappe.PermissionError)
+			if (entry.host_name or "").strip().lower().rstrip(".") != (meeting.host_name or "").strip().lower().rstrip("."):
+				frappe.throw(_("Cuộc họp không thuộc về hệ thống của bạn"), frappe.PermissionError)
 			domain_email = (entry.user_email or "").strip().lower()
 			if (not guest_name_clean or not guest_name_clean.strip()) and entry.user_name:
 				guest_name_clean = entry.user_name.strip()
@@ -1167,7 +1166,6 @@ def promote_to_cohost(meeting_id: str, user_id: str, guest_id: str | None = None
 
 
 @frappe.whitelist(allow_guest=True)
-@rate_limit(limit=10, seconds=5 * 60)
 def check_meeting_access(meeting_id: str) -> dict:
 	"""
 	Check if a meeting allows guest access without authentication
@@ -1179,12 +1177,24 @@ def check_meeting_access(meeting_id: str) -> dict:
 		dict: Access information for the meeting
 	"""
 	try:
-		meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
-		settings = frappe.get_cached_doc("Sae Settings")
-		allow_guest = settings.allow_guest and meeting.allow_guest
+		if not meeting_id or not frappe.db.exists("Sae Meeting", meeting_id):
+			frappe.throw(_("Meeting not found"), frappe.DoesNotExistError)
 
-		return {"allow_guest": allow_guest, "host_only_chat": bool(meeting.host_only_chat)}
+		meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+		if meeting.is_deleted:
+			frappe.throw(_("Meeting is no longer available"), frappe.PermissionError)
+
+		settings = frappe.get_cached_doc("Sae Settings")
+		allow_guest = bool(settings.allow_guest and meeting.allow_guest)
+
+		return {
+			"exists": True,
+			"title": meeting.meeting_title or meeting.name,
+			"allow_guest": allow_guest,
+			"meeting_type": meeting.meeting_type,
+			"host_only_chat": bool(meeting.host_only_chat),
+		}
 	except frappe.DoesNotExistError:
-		frappe.throw(_("Meeting not found"))
+		frappe.throw(_("Meeting not found"), frappe.DoesNotExistError)
 	except Exception as e:
 		frappe.throw(str(e))

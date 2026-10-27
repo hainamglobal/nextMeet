@@ -1,7 +1,48 @@
 <template>
 	<div class="h-[100dvh] bg-gray-900 flex flex-col" data-meeting-component>
+		<!-- Checking meeting validity state -->
+		<div v-if="isCheckingMeeting" class="flex-1 flex items-center justify-center bg-gray-50">
+			<div class="flex items-center justify-center text-gray-800 space-x-4">
+				<Spinner class="h-10 text-blue-600" />
+				<p class="text-base font-medium">Đang kiểm tra cuộc họp...</p>
+			</div>
+		</div>
+
+		<!-- Meeting Not Found / Invalid state -->
+		<div v-else-if="meetingNotFound" class="flex-1 flex flex-col bg-gray-50">
+			<div class="bg-gray-50 px-6 pt-4 flex-shrink-0">
+				<div class="flex items-center gap-2 cursor-pointer" @click="$router.push('/')">
+					<FrappeMeetingLogo class="h-8" />
+					<h4 class="text-gray-900 text-base font-semibold">NextMeet</h4>
+				</div>
+			</div>
+			<div class="flex-1 flex items-center justify-center p-6">
+				<div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center space-y-4 border border-gray-100">
+					<div class="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-2 bg-red-100">
+						<lucide-alert-circle class="w-8 h-8 text-red-600" />
+					</div>
+					<h2 class="text-2xl font-semibold text-gray-900">
+						Cuộc họp không tồn tại
+					</h2>
+					<p class="text-gray-600 text-sm">
+						{{ meetingErrorMessage || "Đường dẫn cuộc họp không đúng hoặc phòng họp đã bị xóa / kết thúc." }}
+					</p>
+					<div class="pt-2">
+						<Button
+							variant="solid"
+							size="lg"
+							class="w-full"
+							@click="$router.push('/')"
+						>
+							Quay lại trang chủ
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Loading state -->
-		<div v-if="isConnecting" class="flex-1 flex items-center justify-center">
+		<div v-else-if="isConnecting" class="flex-1 flex items-center justify-center">
 			<div class="flex items-center justify-center text-white space-x-4">
 				<Spinner class="h-12" />
 				<p class="text-lg">Joining meeting...</p>
@@ -197,6 +238,7 @@ import { computed, onMounted, onUnmounted, provide, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import ChatNotificationQueue from "../components/ChatNotificationQueue.vue";
+import FrappeMeetingLogo from "../icons/FrappeMeetingLogo.vue";
 import ChatPanel from "../components/ChatPanel.vue";
 import JoinRequestNotifications from "../components/JoinRequestNotifications.vue";
 import LobbyOverlay from "../components/LobbyOverlay.vue";
@@ -487,8 +529,63 @@ const isInLobby = computed(() => lobbyStore.isInLobby || false);
 const isWaitingForApproval = computed(
 	() => lobbyStore.isWaitingForApproval || false,
 );
-const isRejected = computed(() => lobbyStore.isJoinRequestRejected || false);
+const isCheckingMeeting = ref(true);
+const meetingNotFound = ref(false);
+const meetingErrorMessage = ref("");
+
+async function validateMeeting() {
+	isCheckingMeeting.value = true;
+	meetingNotFound.value = false;
+	meetingErrorMessage.value = "";
+
+	const id = meetingId.value;
+	const codeRegex = /^[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}$/;
+	if (!id || !codeRegex.test(id)) {
+		isCheckingMeeting.value = false;
+		meetingNotFound.value = true;
+		meetingErrorMessage.value = "Mã cuộc họp không hợp lệ hoặc đường dẫn sai định dạng.";
+		return false;
+	}
+
+	try {
+		const accessData = await frappeRequest({
+			url: "meet.api.meeting.check_meeting_access",
+			params: {
+				meeting_id: id,
+			},
+		});
+
+		if (!accessData || !(accessData as any).exists) {
+			meetingNotFound.value = true;
+			meetingErrorMessage.value = "Cuộc họp không tồn tại hoặc đã kết thúc.";
+			return false;
+		}
+
+		if ((accessData as any).host_only_chat !== undefined) {
+			chatStore.hostOnlyChat = !!(accessData as any).host_only_chat;
+		}
+
+		if (!session.isLoggedIn && !(accessData as { allow_guest?: boolean }).allow_guest) {
+			const loginUrl = `/login?redirect-to=${encodeURIComponent(`/meet/${id}`)}`;
+			window.location.href = loginUrl;
+			return false;
+		}
+
+		return true;
+	} catch (error) {
+		console.error("Failed to check meeting access:", error);
+		meetingNotFound.value = true;
+		meetingErrorMessage.value = "Cuộc họp không tồn tại hoặc đã kết thúc.";
+		return false;
+	} finally {
+		isCheckingMeeting.value = false;
+	}
+}
+
 const showPreview = computed(() => {
+	if (isCheckingMeeting.value || meetingNotFound.value) {
+		return false;
+	}
 	const isUnauthenticatedGuest = !session.isLoggedIn && !isGuestSession.value;
 	if (isUnauthenticatedGuest) {
 		return true;
@@ -645,31 +742,8 @@ onMounted(async () => {
 	window.addEventListener("keydown", keyboardShortcuts.handleKeyDown);
 	window.addEventListener("keyup", keyboardShortcuts.handleKeyUp);
 	document.addEventListener("fullscreenchange", syncFullscreenState);
-	syncFullscreenState();
-
-	// Check meeting access for unauthenticated users
-	if (!session.isLoggedIn) {
-		try {
-			const accessData = await frappeRequest({
-				url: "meet.api.meeting.check_meeting_access",
-				params: {
-					meeting_id: meetingId.value,
-				},
-			});
-
-			if ((accessData as AccessData).host_only_chat !== undefined) {
-				chatStore.hostOnlyChat = !!(accessData as AccessData).host_only_chat;
-			}
-			if (!(accessData as { allow_guest?: boolean }).allow_guest) {
-				const loginUrl = `/login?redirect-to=${encodeURIComponent(`/meet/${meetingId.value}`)}`;
-				window.location.href = loginUrl;
-				return;
-			}
-		} catch (error) {
-			console.error("Failed to check meeting access:", error);
-			return;
-		}
-	}
+	const isValid = await validateMeeting();
+	if (!isValid) return;
 
 	// Setup event handlers
 	chat.setupChatEvents(chatNotificationQueue.value);
@@ -804,4 +878,8 @@ watch(
 		}
 	},
 );
+
+watch(meetingId, async () => {
+	await validateMeeting();
+});
 </script>

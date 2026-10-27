@@ -5,14 +5,14 @@
 				<div class="flex justify-center items-center gap-4 mb-6">
 					<FrappeMeetingLogo class="h-16 w-16" />
 				</div>
-				<h1 class="text-2xl font-bold text-gray-900 mb-4">Frappe Meet</h1>
+				<h1 class="text-2xl font-bold text-gray-900 mb-4">NextMeet</h1>
 			</div>
 
 			<div class="space-y-6">
 				<div class="space-y-3">
 					<form @submit.prevent="joinMeeting" class="space-y-3" data-testid="join-meeting-form">
 						<label class="block text-sm font-medium text-gray-700 text-left">
-							Join with Meeting Code
+							Tham gia bằng mã cuộc họp
 						</label>
 						<div class="flex gap-3 items-center">
 							<div class="flex-1">
@@ -32,7 +32,7 @@
 								:disabled="!isMeetingCodeValid(meetingCode)"
 								data-testid="join-meeting-button"
 							>
-								Join
+								Tham gia
 							</Button>
 						</div>
 					</form>
@@ -40,7 +40,7 @@
 
 				<div class="flex items-center">
 					<div class="flex-grow h-px bg-gray-300"></div>
-					<span class="px-4 text-sm text-gray-500">or</span>
+					<span class="px-4 text-sm text-gray-500">hoặc</span>
 					<div class="flex-grow h-px bg-gray-300"></div>
 				</div>
 
@@ -57,7 +57,7 @@
 							<template #prefix>
 								<lucide-plus class="h-4 w-4" />
 							</template>
-							Start new meeting
+							Bắt đầu cuộc họp mới
 						</Button>
 
 						<Dropdown
@@ -70,7 +70,7 @@
 							:options="[
 								{
 									icon: 'lock',
-									label: 'Create a restricted meeting',
+									label: 'Tạo cuộc họp giới hạn',
 									onClick: () => startNewMeeting('restricted'),
 								},
 							]"

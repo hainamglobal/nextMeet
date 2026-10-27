@@ -36,17 +36,17 @@
 					{{ formattedNames }}
 				</span>
 				<span v-if="extraCount > 0">
-					{{ displayedParticipants.length > 0 ? ' and ' : '' }}{{ extraCount }} other{{ extraCount > 1 ? 's' : '' }}
+					{{ displayedParticipants.length > 0 ? ' và ' : '' }}{{ extraCount }} người khác
 				</span>
 				<span v-if="displayedParticipants.length > 0">
-					{{ displayedParticipants.length > 1 ? ' are' : ' is' }}
+					đang ở
 				</span>
-				in the meeting
+				trong cuộc họp
 			</div>
 		</div>
 		<div v-else>
 			<p class="text-base text-ink-gray-7">
-				You'll be the first to join this meeting
+				Bạn sẽ là người đầu tiên tham gia cuộc họp này
 			</p>
 		</div>
 	</div>
@@ -83,9 +83,9 @@ const formattedNames = computed((): string => {
 	const participantLength = props.participants.length;
 	if (participantLength === 0) return "";
 	if (participantLength === 1) return names[0];
-	if (participantLength === 2) return `${names[0]} and ${names[1]}`;
+	if (participantLength === 2) return `${names[0]} và ${names[1]}`;
 	if (participantLength === 3)
-		return `${names[0]}, ${names[1]} and ${names[2]}`;
+		return `${names[0]}, ${names[1]} và ${names[2]}`;
 	return names.join(", ");
 });
 </script>
