@@ -139,7 +139,16 @@ def _get_mtp_managed_meeting(meeting_id: str, expected_host_name: str | None, ac
 		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
 	if meeting.is_deleted:
 		frappe.throw(_("Meeting is no longer available"), frappe.DoesNotExistError)
-	if not actor_email or (meeting.created_by_email or "").strip().lower() != actor_email.strip().lower():
+	is_creator = bool(actor_email and (meeting.created_by_email or "").strip().lower() == actor_email.strip().lower())
+	is_admin = False
+	if actor_email:
+		user_name = frappe.db.get_value("User", {"email": actor_email.strip().lower()}, "name") or actor_email
+		roles = frappe.get_roles(user_name) or []
+		if "System Manager" in roles or "Administrator" in roles or user_name == "Administrator":
+			is_admin = True
+	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
+		is_admin = True
+	if not is_creator and not is_admin:
 		frappe.throw(_("Only the meeting creator can manage this meeting"), frappe.PermissionError)
 	return meeting
 
@@ -154,11 +163,19 @@ def can_invite_meeting_users(
 		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
 	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	is_creator = bool(actor_email and (meeting.created_by_email or "").strip().lower() == actor_email.strip().lower())
+	is_admin = False
+	if actor_email:
+		user_name = frappe.db.get_value("User", {"email": actor_email.strip().lower()}, "name") or actor_email
+		roles = frappe.get_roles(user_name) or []
+		if "System Manager" in roles or "Administrator" in roles or user_name == "Administrator":
+			is_admin = True
+	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
+		is_admin = True
 	return bool(
 		not meeting.is_deleted
 		and (meeting.host_name or "").strip().lower().rstrip(".") == host_name
-		and actor_email
-		and (meeting.created_by_email or "").strip().lower() == actor_email.strip().lower()
+		and (is_creator or is_admin)
 	)
 
 
