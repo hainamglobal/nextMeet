@@ -13,7 +13,7 @@
 			<div class="bg-gray-50 px-6 pt-4 flex-shrink-0">
 				<div class="flex items-center gap-2 cursor-pointer" @click="$router.push('/')">
 					<FrappeMeetingLogo class="h-8" />
-					<h4 class="text-gray-900 text-base font-semibold">NextMeet</h4>
+					<h4 class="text-gray-900 text-base font-semibold">nextMeet</h4>
 				</div>
 			</div>
 			<div class="flex-1 flex items-center justify-center p-6">
