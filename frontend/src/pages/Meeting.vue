@@ -204,14 +204,12 @@
 
 				<div
 					v-if="connectionState.isNetworkDisconnected"
-					class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/95 px-6 text-white"
+					class="pointer-events-none fixed inset-x-0 top-0 z-[100] flex h-11 items-center gap-3 border-b border-white/10 bg-black px-4 text-white shadow-md sm:px-6"
 					role="status"
 					aria-live="polite"
 				>
-					<div class="flex max-w-3xl items-center gap-5 text-center sm:text-left">
-						<lucide-wifi-off class="h-8 w-8 shrink-0 text-blue-500" />
-						<p class="m-0 text-lg font-medium sm:text-2xl">Bạn bị mất kết nối mạng. Đang cố kết nối lại.</p>
-					</div>
+					<lucide-loader class="h-6 w-6 shrink-0 animate-spin text-blue-500" />
+					<p class="m-0 text-sm font-medium sm:text-base">Bạn bị mất kết nối mạng. Đang cố kết nối lại.</p>
 				</div>
 
 				<!-- Meeting controls are anchored to the meeting viewport so side panels do not shift them -->

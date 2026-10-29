@@ -133,6 +133,24 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertTrue(_has_accepted_invitation(self.meeting, self.member_email))
 		self.assertEqual(self.meeting.invitations[0].status, "Accepted")
 
+		retried = respond_meeting_invitation(
+			self.meeting.name,
+			invitation["invitation_id"],
+			"Accepted",
+			invitee_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		conflicting_retry = respond_meeting_invitation(
+			self.meeting.name,
+			invitation["invitation_id"],
+			"Declined",
+			invitee_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		self.assertEqual(retried["status"], "Accepted")
+		self.assertTrue(retried["already_responded"])
+		self.assertEqual(conflicting_retry["status"], "Accepted")
+
 	def test_user_meeting_list_contains_only_created_and_attended_meetings(self):
 		host_name = frappe.local.site
 		created = self._create_meeting(self.member_email)

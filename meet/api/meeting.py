@@ -496,7 +496,13 @@ def respond_meeting_invitation(
 	if not invitation or invitation.invitee_email != email:
 		frappe.throw(_("Invitation not found for this user"), frappe.PermissionError)
 	if invitation.status != "Invited":
-		frappe.throw(_("This invitation has already been answered"), frappe.ValidationError)
+		return {
+			"meeting_id": meeting_id,
+			"invitation_id": invitation_id,
+			"status": invitation.status,
+			"invited_by": invitation.invited_by,
+			"already_responded": True,
+		}
 	if _invitation_expired(invitation, now_datetime()):
 		invitation.status = "Expired"
 		invitation.responded_on = _invitation_expiration(invitation)
