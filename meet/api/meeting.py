@@ -1069,7 +1069,7 @@ def _relay_presence_callback(callback_url, payload, signature):
 
 
 @frappe.whitelist(allow_guest=True)
-@rate_limit(limit=10, seconds=60 * 60)
+@rate_limit(limit=60, seconds=10 * 60)
 def join_meeting_as_guest(
 	meeting_id: str,
 	guest_name: str,
