@@ -70,6 +70,21 @@ describe("SFURecoveryManager", () => {
 			expect(transportManager.restartAllTransportIce).not.toHaveBeenCalled();
 		});
 
+		it("reports transport loss until all transports reconnect", () => {
+			const { manager } = createManager();
+			const onNetworkStateChange = vi.fn();
+			manager.setupTransportEventHandlers(onNetworkStateChange);
+
+			manager.handleTransportConnectionStateChange("send", "disconnected");
+			manager.handleTransportConnectionStateChange("recv", "disconnected");
+			manager.handleTransportConnectionStateChange("send", "connected");
+
+			expect(onNetworkStateChange).toHaveBeenLastCalledWith(true);
+
+			manager.handleTransportConnectionStateChange("recv", "connected");
+			expect(onNetworkStateChange).toHaveBeenLastCalledWith(false);
+		});
+
 		it("triggers after 3 seconds of sustained disconnected state", async () => {
 			const { manager, transportManager } = createManager();
 			manager.setupTransportEventHandlers();

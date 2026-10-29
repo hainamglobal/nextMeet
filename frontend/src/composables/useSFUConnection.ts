@@ -90,18 +90,34 @@ export function useSFUConnection(deps: {
 	const joiningInProgress = shallowRef(false);
 	const approvedJoinInProgress = shallowRef(false);
 	let networkStatusSocket: typeof sfuClient.socket = null;
+	let browserOffline = typeof navigator !== "undefined" && !navigator.onLine;
+	let socketDisconnected = false;
+	let transportDisconnected = false;
+
+	const updateNetworkStatus = () => {
+		connectionState.isNetworkDisconnected = connectionState.isSetupComplete &&
+			(browserOffline || socketDisconnected || transportDisconnected);
+	};
 
 	const handleSfuDisconnect = () => {
-		if (connectionState.isSetupComplete) {
-			connectionState.isNetworkDisconnected = true;
-		}
+		socketDisconnected = true;
+		updateNetworkStatus();
 	};
 	const handleSfuConnect = () => {
-		connectionState.isNetworkDisconnected = false;
+		socketDisconnected = false;
+		updateNetworkStatus();
 	};
-	const handleBrowserOffline = () => handleSfuDisconnect();
+	const handleTransportNetworkChange = (disconnected: boolean) => {
+		transportDisconnected = disconnected;
+		updateNetworkStatus();
+	};
+	const handleBrowserOffline = () => {
+		browserOffline = true;
+		updateNetworkStatus();
+	};
 	const handleBrowserOnline = () => {
-		if (sfuClient.isConnected()) handleSfuConnect();
+		browserOffline = false;
+		updateNetworkStatus();
 	};
 	const attachNetworkStatusListeners = () => {
 		const socket = sfuClient.socket;
@@ -231,6 +247,7 @@ export function useSFUConnection(deps: {
 			onParticipantJoined: handleParticipantJoined,
 			onParticipantLeft: handleParticipantLeft,
 			onParticipantUpdated: handleParticipantUpdated,
+			onNetworkConnectionChange: handleTransportNetworkChange,
 			onScreenShareStarted: onScreenShareStarted,
 			onScreenShareStopped: onScreenShareStopped,
 			onActiveSpeakerChanged: (participantIds: string[]) => {
@@ -404,7 +421,8 @@ export function useSFUConnection(deps: {
 			await manager.setupExistingParticipants();
 
 			connectionState.isSetupComplete = true;
-			connectionState.isNetworkDisconnected = !sfuClient.isConnected();
+			socketDisconnected = !sfuClient.isConnected();
+			updateNetworkStatus();
 
 			if (isHost || isCohost || connectionState.isHost) {
 				fetchExistingWaitingRoomUsers();

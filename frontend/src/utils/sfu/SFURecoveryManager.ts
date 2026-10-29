@@ -24,6 +24,8 @@ export class SFURecoveryManager {
 	private static readonly DISCONNECTED_GRACE_MS = 3000;
 	private static readonly WATCHDOG_INTERVAL_MS = 1000;
 	private disconnectedSince: Map<TransportDirection, number> = new Map();
+	private unhealthyDirections = new Set<TransportDirection>();
+	private onNetworkStateChange?: (disconnected: boolean) => void;
 	private watchdogHandle: ReturnType<typeof setInterval> | null = null;
 
 	constructor(options: RecoveryManagerOptions) {
@@ -75,20 +77,29 @@ export class SFURecoveryManager {
 	}
 
 	handleTransportConnectionStateChange(direction: string, state: string): void {
+		const transportDirection = direction as TransportDirection;
 		if (state === "failed" || state === "closed") {
-			this.disconnectedSince.delete(direction as TransportDirection);
+			this.unhealthyDirections.add(transportDirection);
+			this.disconnectedSince.delete(transportDirection);
+			this.onNetworkStateChange?.(true);
 			this.recoverTransportIce(`transport_${direction}_${state}`);
 			return;
 		}
 
 		if (state === "disconnected") {
-			if (!this.disconnectedSince.has(direction as TransportDirection)) {
-				this.disconnectedSince.set(direction as TransportDirection, Date.now());
+			this.unhealthyDirections.add(transportDirection);
+			this.onNetworkStateChange?.(true);
+			if (!this.disconnectedSince.has(transportDirection)) {
+				this.disconnectedSince.set(transportDirection, Date.now());
 			}
 			return;
 		}
 
-		this.disconnectedSince.delete(direction as TransportDirection);
+		if (state === "connected" || state === "completed") {
+			this.disconnectedSince.delete(transportDirection);
+			this.unhealthyDirections.delete(transportDirection);
+			this.onNetworkStateChange?.(this.unhealthyDirections.size > 0);
+		}
 	}
 
 	private runWatchdog(): void {
@@ -107,7 +118,8 @@ export class SFURecoveryManager {
 		}
 	}
 
-	setupTransportEventHandlers(): void {
+	setupTransportEventHandlers(onNetworkStateChange?: (disconnected: boolean) => void): void {
+		this.onNetworkStateChange = onNetworkStateChange;
 		this.transportManager.setEventHandlers({
 			onTransportConnectionStateChange: ({
 				direction,
@@ -117,6 +129,7 @@ export class SFURecoveryManager {
 				state: string;
 			}) => {
 				this.handleTransportConnectionStateChange(direction, state);
+				this.onNetworkStateChange?.(this.unhealthyDirections.size > 0);
 			},
 		});
 
@@ -132,6 +145,8 @@ export class SFURecoveryManager {
 		this.recoveryInProgress = false;
 		this.lastRecoveryAt = 0;
 		this.disconnectedSince.clear();
+		this.unhealthyDirections.clear();
+		this.onNetworkStateChange?.(false);
 		if (this.watchdogHandle !== null) {
 			clearInterval(this.watchdogHandle);
 			this.watchdogHandle = null;

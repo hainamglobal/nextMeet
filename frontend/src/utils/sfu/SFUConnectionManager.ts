@@ -53,6 +53,7 @@ export interface SFUEventHandlers {
 	onActiveSpeakerChanged?: (participantIds: string[]) => void;
 	onHostMutedYou?: () => void;
 	onHostKickedYou?: (data: unknown) => void;
+	onNetworkConnectionChange?: (disconnected: boolean) => void;
 }
 
 interface ConnectionManagerOptions {
@@ -108,7 +109,9 @@ export class SFUConnectionManager {
 			this.isConnected = true;
 
 			this.transportManager.initialize(this.sfuClient);
-			this.recoveryManager.setupTransportEventHandlers();
+			this.recoveryManager.setupTransportEventHandlers((disconnected) => {
+				this.eventHandlers.onNetworkConnectionChange?.(disconnected);
+			});
 			this.setupManagerEventHandlers();
 			this.setupSFUEventHandlers();
 
