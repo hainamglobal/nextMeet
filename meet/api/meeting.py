@@ -447,7 +447,7 @@ def get_user_meetings(
 
 	for meeting in meetings:
 		meeting.is_created_by_me = meeting.name in created_ids
-		meeting.is_participant = meeting.name in joined_ids
+		meeting.is_participant = meeting.name in joined_ids and meeting.name not in created_ids
 		meeting.has_started = meeting.name in started_ids
 	return meetings
 

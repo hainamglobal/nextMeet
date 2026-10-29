@@ -192,7 +192,7 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 
 		self.assertEqual(set(meetings), {created.name, joined.name, member_only.name})
 		self.assertTrue(meetings[created.name].is_created_by_me)
-		self.assertTrue(meetings[created.name].is_participant)
+		self.assertFalse(meetings[created.name].is_participant)
 		self.assertFalse(meetings[created.name].has_started)
 		self.assertFalse(meetings[joined.name].is_created_by_me)
 		self.assertTrue(meetings[joined.name].is_participant)
