@@ -6,6 +6,7 @@ export interface ConnectionState {
 	connectionError: string | null;
 	isInPreview: boolean;
 	isSetupComplete: boolean;
+	isNetworkDisconnected: boolean;
 	codecStrategy: string;
 	networkQuality: string;
 	connectionIssues: string[];
@@ -24,6 +25,7 @@ export const useConnectionState = defineStore("connection", () => {
 	const connectionError = ref<string | null>(null);
 	const isInPreview = ref(true);
 	const isSetupComplete = ref(false);
+	const isNetworkDisconnected = ref(false);
 	const codecStrategy = ref("svc");
 	const networkQuality = ref("good");
 	const connectionIssues = ref<string[]>([]);
@@ -40,6 +42,7 @@ export const useConnectionState = defineStore("connection", () => {
 		isConnecting.value = false;
 		isInPreview.value = true;
 		isSetupComplete.value = false;
+		isNetworkDisconnected.value = false;
 		codecStrategy.value = "svc";
 		networkQuality.value = "good";
 		connectionIssues.value = [];
@@ -57,6 +60,7 @@ export const useConnectionState = defineStore("connection", () => {
 		connectionError,
 		isInPreview,
 		isSetupComplete,
+		isNetworkDisconnected,
 		codecStrategy,
 		networkQuality,
 		connectionIssues,

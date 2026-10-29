@@ -138,7 +138,7 @@ export class SFUClient {
 				path: socketPath,
 				auth: { token: connectionDetails.authToken ?? "" },
 				reconnection: true,
-				reconnectionAttempts: 5,
+				reconnectionAttempts: Number.POSITIVE_INFINITY,
 				reconnectionDelay: 1000,
 				reconnectionDelayMax: 5000,
 				upgrade: true,

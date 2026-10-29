@@ -202,8 +202,20 @@
 					</Transition>
 				</div>
 
+				<div
+					v-if="connectionState.isNetworkDisconnected"
+					class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/95 px-6 text-white"
+					role="status"
+					aria-live="polite"
+				>
+					<div class="flex max-w-3xl items-center gap-5 text-center sm:text-left">
+						<lucide-wifi-off class="h-8 w-8 shrink-0 text-blue-500" />
+						<p class="m-0 text-lg font-medium sm:text-2xl">Bạn bị mất kết nối mạng. Đang cố kết nối lại.</p>
+					</div>
+				</div>
+
 				<!-- Meeting controls are anchored to the meeting viewport so side panels do not shift them -->
-				<div class="pointer-events-none absolute inset-x-0 bottom-0">
+				<div class="pointer-events-none absolute inset-x-0 bottom-0 z-50">
 					<!-- Meeting controls -->
 					<MeetingToolbar
 						:isChatOpen="chatStore.isChatOpen"

@@ -89,6 +89,46 @@ export function useSFUConnection(deps: {
 	const realtimeListenersSetup = shallowRef(false);
 	const joiningInProgress = shallowRef(false);
 	const approvedJoinInProgress = shallowRef(false);
+	let networkStatusSocket: typeof sfuClient.socket = null;
+
+	const handleSfuDisconnect = () => {
+		if (connectionState.isSetupComplete) {
+			connectionState.isNetworkDisconnected = true;
+		}
+	};
+	const handleSfuConnect = () => {
+		connectionState.isNetworkDisconnected = false;
+	};
+	const handleBrowserOffline = () => handleSfuDisconnect();
+	const handleBrowserOnline = () => {
+		if (sfuClient.isConnected()) handleSfuConnect();
+	};
+	const attachNetworkStatusListeners = () => {
+		const socket = sfuClient.socket;
+		if (!socket || socket === networkStatusSocket) return;
+		networkStatusSocket?.off("disconnect", handleSfuDisconnect);
+		networkStatusSocket?.off("connect", handleSfuConnect);
+		networkStatusSocket?.off("connect_error", handleSfuDisconnect);
+		networkStatusSocket = socket;
+		socket.on("disconnect", handleSfuDisconnect);
+		socket.on("connect", handleSfuConnect);
+		socket.on("connect_error", handleSfuDisconnect);
+	};
+
+	if (typeof window !== "undefined") {
+		window.addEventListener("offline", handleBrowserOffline);
+		window.addEventListener("online", handleBrowserOnline);
+	}
+	onUnmounted(() => {
+		if (typeof window !== "undefined") {
+			window.removeEventListener("offline", handleBrowserOffline);
+			window.removeEventListener("online", handleBrowserOnline);
+		}
+		networkStatusSocket?.off("disconnect", handleSfuDisconnect);
+		networkStatusSocket?.off("connect", handleSfuConnect);
+		networkStatusSocket?.off("connect_error", handleSfuDisconnect);
+		networkStatusSocket = null;
+	});
 
 	const joinMeetingAPI = createResource({
 		url: "meet.api.meeting.join_meeting",
@@ -303,6 +343,7 @@ export function useSFUConnection(deps: {
 			}
 
 			await manager.connect(connectionState.guestAuthToken);
+			attachNetworkStatusListeners();
 			connectionState.codecStrategy = sfuClient.getCodecStrategy() || "svc";
 
 			let userData: Record<string, unknown>;
@@ -363,6 +404,7 @@ export function useSFUConnection(deps: {
 			await manager.setupExistingParticipants();
 
 			connectionState.isSetupComplete = true;
+			connectionState.isNetworkDisconnected = !sfuClient.isConnected();
 
 			if (isHost || isCohost || connectionState.isHost) {
 				fetchExistingWaitingRoomUsers();
