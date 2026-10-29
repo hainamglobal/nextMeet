@@ -61,16 +61,30 @@
 		</div>
 
 		<!-- Meeting ended state -->
-		<div v-else-if="callEnded" class="relative flex-1 bg-white px-6">
-			<div class="absolute left-6 top-6 flex items-center gap-3">
-				<FrappeMeetingLogo class="h-8 w-8" />
-				<span class="text-base font-semibold text-gray-900">nextMeet</span>
-			</div>
-			<div class="mx-auto flex max-w-2xl flex-col items-center pt-24 text-center sm:pt-28">
-				<h1 class="text-3xl font-normal text-gray-700">Bạn đã rời khỏi cuộc họp</h1>
-				<div class="mt-8 flex flex-wrap justify-center gap-3">
-					<Button variant="outline" @click="rejoinMeeting">Tham gia lại</Button>
+		<div v-else-if="callEnded" class="relative flex-1 overflow-hidden bg-slate-50">
+			<header class="absolute inset-x-0 top-0 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-5 sm:px-8">
+				<div class="flex items-center gap-3">
+					<FrappeMeetingLogo class="h-8 w-8" />
+					<span class="text-base font-semibold text-gray-900">nextMeet</span>
 				</div>
+				<span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">Đã kết thúc</span>
+			</header>
+			<main class="flex min-h-full items-center justify-center px-5 pb-8 pt-24">
+				<section class="w-full max-w-xl text-center">
+					<div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
+						<lucide-check class="h-8 w-8" />
+					</div>
+					<p class="mb-2 text-sm font-semibold text-emerald-700">Cuộc họp đã kết thúc</p>
+					<h1 class="text-3xl font-semibold text-gray-900">Bạn đã rời khỏi cuộc họp</h1>
+					<p class="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-600">
+						Kết nối và các thiết bị trong cuộc họp đã được ngắt. Bạn có thể tham gia lại nếu cuộc họp vẫn còn mở.
+					</p>
+					<div class="mt-8 flex justify-center">
+						<Button variant="solid" size="lg" class="min-w-40" @click="rejoinMeeting">Tham gia lại</Button>
+					</div>
+					<p class="mt-8 text-xs text-gray-500">Mã cuộc họp <span class="ml-1 font-medium text-gray-700">{{ meetingId }}</span></p>
+				</section>
+			</main>
 			</div>
 		</div>
 
