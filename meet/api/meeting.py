@@ -309,6 +309,123 @@ def get_my_meeting_invitations(
 	]
 
 
+def _get_user_joined_meeting_ids(actor_email: str, host_name: str) -> set[str]:
+	if not actor_email:
+		return set()
+	joined_ids = {
+		row.meeting
+		for row in frappe.get_all(
+			"User Domain",
+			filters={"host_name": host_name, "user_email": actor_email},
+			fields=["meeting", "user_id"],
+		)
+		if row.meeting and row.user_id
+	}
+	meet_user = frappe.db.get_value("User", {"email": actor_email}, "name")
+	member_ids = {actor_email}
+	if meet_user:
+		member_ids.add(meet_user)
+	joined_ids.update(
+		row.parent
+		for row in frappe.get_all(
+			"Sae Meeting User",
+			filters={"user": ["in", list(member_ids)], "parenttype": "Sae Meeting"},
+			fields=["parent"],
+		)
+		if row.parent
+	)
+	return joined_ids
+
+
+@frappe.whitelist()
+def get_user_meetings(
+	actor_email: str,
+	expected_host_name: str | None = None,
+	limit: int = 100,
+	start: int = 0,
+) -> list[dict]:
+	"""Return only this MTP user's created meetings and successful attendances."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+
+	actor_email = (actor_email or "").strip().lower()
+	if not actor_email:
+		return []
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	try:
+		limit = min(max(int(limit), 1), 500)
+		start = max(int(start), 0)
+	except (TypeError, ValueError):
+		frappe.throw(_("Invalid meeting list pagination"), frappe.ValidationError)
+
+	created_ids = set(
+		frappe.get_all(
+			"Sae Meeting",
+			filters={
+				"host_name": host_name,
+				"is_deleted": 0,
+				"created_by_email": actor_email,
+			},
+			pluck="name",
+		)
+	)
+
+	joined_ids = _get_user_joined_meeting_ids(actor_email, host_name)
+
+	meeting_ids = created_ids | joined_ids
+	if not meeting_ids:
+		return []
+
+	meetings = frappe.get_all(
+		"Sae Meeting",
+		filters={
+			"name": ["in", list(meeting_ids)],
+			"host_name": host_name,
+			"is_deleted": 0,
+		},
+		fields=[
+			"name",
+			"meeting_title",
+			"meeting_type",
+			"allow_guest",
+			"owner",
+			"created_by_name",
+			"created_by_email",
+			"creation",
+			"modified",
+		],
+		order_by="creation desc",
+		limit_start=start,
+		limit_page_length=limit,
+	)
+	for meeting in meetings:
+		meeting.is_created_by_me = meeting.name in created_ids
+		meeting.is_participant = meeting.name in joined_ids
+	return meetings
+
+
+@frappe.whitelist()
+def get_user_meeting(
+	meeting_id: str,
+	actor_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	"""Return a meeting document only to its creator or a confirmed attendee."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+
+	actor_email = (actor_email or "").strip().lower()
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	meeting = frappe.get_doc("Sae Meeting", meeting_id)
+	if (meeting.host_name or "").strip().lower().rstrip(".") != host_name or meeting.is_deleted:
+		frappe.throw(_("Meeting is not available"), frappe.PermissionError)
+	is_creator = (meeting.created_by_email or "").strip().lower() == actor_email
+	is_participant = meeting_id in _get_user_joined_meeting_ids(actor_email, host_name)
+	if not actor_email or not (is_creator or is_participant):
+		frappe.throw(_("You cannot view this meeting"), frappe.PermissionError)
+	return meeting.as_dict()
+
+
 @frappe.whitelist()
 def respond_meeting_invitation(
 	meeting_id: str,
@@ -513,9 +630,14 @@ def join_meeting(meeting_id: str) -> dict:
 			elif result.get("status") == "joined":
 				from meet.api.integration import record_meeting_participant
 
+				user_info = frappe.db.get_value(
+					"User", frappe.session.user, ["email", "full_name"], as_dict=True
+				) or {}
 				record_meeting_participant(
 					meeting,
-					frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user,
+					user_info.get("full_name") or frappe.session.user,
+					user_email=user_info.get("email") or "",
+					user_id=frappe.session.user,
 				)
 				is_host = _is_meeting_host(meeting, frappe.session.user)
 				is_cohost = bool(meeting.is_host_or_cohost(frappe.session.user) and not is_host)
@@ -984,7 +1106,9 @@ def join_meeting_as_guest(
 				meeting.add_guest_to_members(guest_id)
 			from meet.api.integration import record_meeting_guest
 
-			record_meeting_guest(meeting, guest_name_clean)
+			record_meeting_guest(
+				meeting, guest_name_clean, guest_id=guest_id, guest_email=session_payload["user_email"]
+			)
 			auth_token = _generate_sfu_token(
 				user_id=guest_id,
 				meeting_id=meeting_id,
@@ -1032,7 +1156,9 @@ def join_meeting_as_guest(
 
 	meeting.add_guest_to_members(guest_id)
 	from meet.api.integration import record_meeting_guest
-	record_meeting_guest(meeting, guest_name_clean)
+	record_meeting_guest(
+		meeting, guest_name_clean, guest_id=guest_id, guest_email=session_payload["user_email"]
+	)
 
 	return {
 		"status": "joined",
@@ -1088,7 +1214,12 @@ def get_approved_guest_connection_details(meeting_id: str, guest_id: str) -> dic
 	guest_name = session_data.get("guest_name", f"Guest-{guest_id[:8]}")
 	from meet.api.integration import record_meeting_guest
 
-	record_meeting_guest(meeting, guest_name)
+	record_meeting_guest(
+		meeting,
+		guest_name,
+		guest_id=guest_id,
+		guest_email=session_data.get("user_email"),
+	)
 
 	auth_token = _generate_sfu_token(
 		user_id=guest_id,

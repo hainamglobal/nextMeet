@@ -8,8 +8,6 @@ from meet.config.backend import get_backend_settings, get_site_host_name
 
 
 ALLOWED_METHODS = {
-	"frappe.client.get_list",
-	"frappe.client.get",
 	"run_doc_method",
 	"meet.api.meeting.create",
 	"meet.api.meeting.get_sfu_connection_details",
@@ -26,6 +24,8 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.can_invite_meeting_users",
 	"meet.api.meeting.invite_meeting_user",
 	"meet.api.meeting.get_my_meeting_invitations",
+	"meet.api.meeting.get_user_meetings",
+	"meet.api.meeting.get_user_meeting",
 	"meet.api.meeting.respond_meeting_invitation",
 	"meet.api.integration.record_user_domain",
 }
@@ -35,7 +35,7 @@ def request(method_name, params):
 	if method_name not in ALLOWED_METHODS:
 		frappe.throw(_("Meet method is not allowed"), frappe.PermissionError)
 
-	if method_name in {"frappe.client.get_list", "frappe.client.get", "run_doc_method"}:
+	if method_name == "run_doc_method":
 		doctype = params.get("doctype") or params.get("dt")
 		if doctype != "Sae Meeting":
 			frappe.throw(_("Only Sae Meeting documents can be accessed"), frappe.PermissionError)
@@ -55,35 +55,37 @@ def request(method_name, params):
 	elif method_name in {
 		"meet.api.meeting.invite_meeting_user",
 		"meet.api.meeting.get_my_meeting_invitations",
+		"meet.api.meeting.get_user_meetings",
+		"meet.api.meeting.get_user_meeting",
 		"meet.api.meeting.respond_meeting_invitation",
 	}:
 		params["expected_host_name"] = site_host_name
-	elif method_name == "frappe.client.get_list" and params.get("doctype") == "Sae Meeting":
-		filters = params.get("filters") or {}
-		if isinstance(filters, dict):
-			filters = {**filters, "host_name": site_host_name}
-		else:
-			filters = [*filters, ["Sae Meeting", "host_name", "=", site_host_name]]
-		params["filters"] = filters
-
 	client = MeetBackendClient(get_backend_settings())
 	try:
 		result = client.call(method_name, params)
 	except MeetBackendError as exc:
 		frappe.log_error("Meet Integration", str(exc))
-		frappe.throw(_(str(exc)), frappe.ValidationError)
+		exc_str = str(exc)
+		if method_name == "meet.api.integration.record_user_domain" and (
+			"404" in exc_str or "not found" in exc_str.lower() or "does not exist" in exc_str.lower()
+		):
+			frappe.throw(_("Mã cuộc họp không chính xác. Vui lòng kiểm tra lại."), frappe.ValidationError)
+		frappe.throw(_(exc_str), frappe.ValidationError)
 
-	if method_name == "frappe.client.get" and result.get("host_name") != site_host_name:
-		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
 	return result
 
 
 def health():
 	settings = get_backend_settings()
-	request(
-		"frappe.client.get_list",
-		{"doctype": "Sae Meeting", "fields": ["name"], "limit_page_length": 1},
-	)
+	client = MeetBackendClient(settings)
+	try:
+		client.call(
+			"frappe.client.get_list",
+			{"doctype": "Sae Meeting", "fields": ["name"], "limit_page_length": 1},
+		)
+	except MeetBackendError as exc:
+		frappe.log_error("Meet Integration", str(exc))
+		frappe.throw(_(str(exc)), frappe.ValidationError)
 	return {"connected": True, "server_url": settings["base_url"]}
 
 

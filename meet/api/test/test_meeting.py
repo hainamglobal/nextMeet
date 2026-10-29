@@ -9,6 +9,7 @@ import requests
 from frappe.tests import IntegrationTestCase
 from frappe.utils import add_to_date, now_datetime
 
+from meet.api.integration import record_meeting_guest
 from meet.api.meeting import (
 	_relay_presence_callback,
 	_resolve_meeting_host_name,
@@ -18,6 +19,8 @@ from meet.api.meeting import (
 	delete_mtp_meeting,
 	invite_meeting_user,
 	get_my_meeting_invitations,
+	get_user_meeting,
+	get_user_meetings,
 	respond_meeting_invitation,
 	_has_accepted_invitation,
 )
@@ -129,6 +132,93 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.meeting.reload()
 		self.assertTrue(_has_accepted_invitation(self.meeting, self.member_email))
 		self.assertEqual(self.meeting.invitations[0].status, "Accepted")
+
+	def test_user_meeting_list_contains_only_created_and_attended_meetings(self):
+		host_name = frappe.local.site
+		created = self._create_meeting(self.member_email)
+		created.host_name = host_name
+		created.created_by_email = self.member_email
+		created.save(ignore_permissions=True)
+
+		joined = self._create_meeting(self.host_email)
+		joined.host_name = host_name
+		joined.created_by_email = self.host_email
+		joined.add_user_to_table("members", "guest_member_session")
+		joined.save(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "User Domain",
+				"meeting": joined.name,
+				"host_name": host_name,
+				"user_email": self.member_email,
+				"user_name": "Member",
+				"user_id": "guest_member_session",
+			}
+		).insert(ignore_permissions=True)
+
+		pending = self._create_meeting(self.host_email)
+		pending.host_name = host_name
+		pending.created_by_email = self.host_email
+		pending.save(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "User Domain",
+				"meeting": pending.name,
+				"host_name": host_name,
+				"user_email": self.member_email,
+				"user_name": "Member",
+			}
+		).insert(ignore_permissions=True)
+
+		unrelated = self._create_meeting(self.outsider_email)
+		unrelated.host_name = host_name
+		unrelated.created_by_email = self.outsider_email
+		unrelated.save(ignore_permissions=True)
+
+		other_site = self._create_meeting(self.member_email)
+		other_site.host_name = "another-site.example"
+		other_site.created_by_email = self.member_email
+		other_site.save(ignore_permissions=True)
+
+		frappe.set_user(self.member_email)
+		rows = get_user_meetings(self.member_email, expected_host_name=host_name)
+		meetings = {row.name: row for row in rows}
+
+		self.assertEqual(set(meetings), {created.name, joined.name})
+		self.assertTrue(meetings[created.name].is_created_by_me)
+		self.assertTrue(meetings[created.name].is_participant)
+		self.assertFalse(meetings[joined.name].is_created_by_me)
+		self.assertTrue(meetings[joined.name].is_participant)
+
+		self.assertEqual(get_user_meeting(joined.name, self.member_email, host_name).name, joined.name)
+		with self.assertRaises(frappe.PermissionError):
+			get_user_meeting(joined.name, self.outsider_email, host_name)
+
+	def test_guest_attendance_is_recorded_and_listed_by_meeting_code(self):
+		host_name = frappe.local.site
+		meeting = self._create_meeting(self.host_email)
+		meeting.host_name = host_name
+		meeting.created_by_email = self.host_email
+		meeting.save(ignore_permissions=True)
+
+		record_meeting_guest(
+			meeting,
+			"Member",
+			guest_id="guest_member_attended",
+			guest_email=self.member_email,
+		)
+
+		rows = get_user_meetings(self.member_email, expected_host_name=host_name)
+		listed_meeting = next(row for row in rows if row.name == meeting.name)
+		attendance = frappe.get_all(
+			"User Domain",
+			filters={"meeting": meeting.name, "user_id": "guest_member_attended"},
+			fields=["user_email"],
+			limit=1,
+		)
+
+		self.assertEqual(attendance[0].user_email, self.member_email)
+		self.assertTrue(listed_meeting.is_participant)
 
 	def test_expired_meeting_invitation_can_be_resent_after_five_minutes(self):
 		self.meeting.host_name = frappe.local.site

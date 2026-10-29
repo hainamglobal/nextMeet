@@ -23,6 +23,14 @@ def request(method_name, params=None):
 			"created_by_name": user.get("full_name") or frappe.session.user,
 			"created_by_email": user.get("email") or "",
 		}
+	elif method_name in {
+		"meet.api.meeting.get_user_meetings",
+		"meet.api.meeting.get_user_meeting",
+	}:
+		user_email = frappe.db.get_value("User", frappe.session.user, "email") or ""
+		if not user_email:
+			frappe.throw(_("The current user has no email address"), frappe.ValidationError)
+		parsed_params = {**parsed_params, "actor_email": user_email}
 	return meet_backend_service.request(method_name, parsed_params)
 
 
@@ -52,7 +60,7 @@ def register_user_domain(meeting_id):
 	)
 
 
-def record_meeting_participant(meeting, user_name, user_email=None):
+def record_meeting_participant(meeting, user_name, user_email=None, user_id=None):
 	"""Record an admitted participant without using a Meet account email."""
 	from frappe.utils import now_datetime
 
@@ -65,6 +73,7 @@ def record_meeting_participant(meeting, user_name, user_email=None):
 			"meeting": meeting.name,
 			"user_email": (user_email or "").strip().lower(),
 			"user_name": name,
+			"user_id": (user_id or "").strip(),
 			"host_name": (meeting.host_name or frappe.local.site).strip().lower().rstrip("."),
 			"joined_at": now_datetime(),
 		}
@@ -72,33 +81,47 @@ def record_meeting_participant(meeting, user_name, user_email=None):
 	entry.insert(ignore_permissions=True)
 
 
-def record_meeting_guest(meeting, guest_name):
+def record_meeting_guest(meeting, guest_name, guest_id=None, guest_email=None):
 	"""Record guest entry; any email remains sourced only from MTP's authenticated call."""
 	from frappe.utils import now_datetime
 
 	name = (guest_name or "").strip()[:140]
 	if not name:
 		return
+	filters = {
+		"meeting": meeting.name,
+		"host_name": (meeting.host_name or frappe.local.site).strip().lower().rstrip("."),
+	}
+	if guest_id:
+		filters["user_id"] = guest_id
+	else:
+		filters["user_name"] = name
 	previous = frappe.get_all(
 		"User Domain",
-		filters={
-			"meeting": meeting.name,
-			"host_name": (meeting.host_name or frappe.local.site).strip().lower().rstrip("."),
-			"user_name": name,
-		},
-		fields=["name", "user_email", "joined_at"],
+		filters=filters,
+		fields=["name", "user_email", "user_id", "joined_at"],
 		order_by="joined_at desc",
 		limit=1,
 	)
 	if previous and (now_datetime() - previous[0].joined_at).total_seconds() < 120:
-		frappe.db.set_value("User Domain", previous[0].name, "joined_at", now_datetime(), update_modified=False)
+		frappe.db.set_value(
+			"User Domain",
+			previous[0].name,
+			{
+				"user_email": (guest_email or previous[0].user_email or "").strip().lower(),
+				"user_id": guest_id or previous[0].user_id or "",
+				"joined_at": now_datetime(),
+			},
+			update_modified=False,
+		)
 		return previous[0].name
 	entry = frappe.get_doc(
 		{
 			"doctype": "User Domain",
 			"meeting": meeting.name,
-			"user_email": "",
+			"user_email": (guest_email or "").strip().lower(),
 			"user_name": name,
+			"user_id": guest_id or "",
 			"host_name": (meeting.host_name or frappe.local.site).strip().lower().rstrip("."),
 			"joined_at": now_datetime(),
 		}

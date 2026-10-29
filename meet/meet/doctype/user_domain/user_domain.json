@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "user_email",
+  "user_id",
   "user_name",
   "host_name",
   "meeting",
@@ -16,6 +17,13 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "User Email",
+   "reqd": 0
+  },
+  {
+   "fieldname": "user_id",
+   "fieldtype": "Data",
+   "in_list_view": 0,
+   "label": "Joined User ID",
    "reqd": 0
   },
   {
