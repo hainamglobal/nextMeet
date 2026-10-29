@@ -62,15 +62,14 @@
 
 		<!-- Meeting ended state -->
 		<div v-else-if="callEnded" class="relative flex-1 bg-white px-6">
-			<div class="absolute left-6 top-6 flex items-center gap-3 text-sm text-gray-700">
-				<div class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-600 font-medium text-gray-800">{{ returnCountdown }}</div>
-				<span>{{ returnCountdown ? 'Đang quay lại màn hình chính' : 'Bạn có thể đóng cửa sổ này' }}</span>
+			<div class="absolute left-6 top-6 flex items-center gap-3">
+				<FrappeMeetingLogo class="h-8 w-8" />
+				<span class="text-base font-semibold text-gray-900">nextMeet</span>
 			</div>
 			<div class="mx-auto flex max-w-2xl flex-col items-center pt-24 text-center sm:pt-28">
 				<h1 class="text-3xl font-normal text-gray-700">Bạn đã rời khỏi cuộc họp</h1>
 				<div class="mt-8 flex flex-wrap justify-center gap-3">
 					<Button variant="outline" @click="rejoinMeeting">Tham gia lại</Button>
-					<Button variant="solid" @click="returnToHome">Quay lại màn hình chính</Button>
 				</div>
 			</div>
 		</div>
@@ -331,8 +330,6 @@ const {
 } = useMeetingDoc();
 const meetingDoc = getMeetingDoc(meetingId.value);
 const callEnded = ref(false);
-const returnCountdown = ref(60);
-let returnHomeTimer: ReturnType<typeof setInterval> | null = null;
 
 // --- Background effects & noise cancellation ---
 const backgroundEffects = useBackgroundEffects();
@@ -661,34 +658,9 @@ const isToolbarVisible = ref(true);
 
 function showCallEndedScreen() {
 	callEnded.value = true;
-	returnCountdown.value = 60;
-	clearEndedCountdown();
-	returnHomeTimer = setInterval(() => {
-		if (returnCountdown.value <= 1) {
-			if (session.isLoggedIn) {
-				returnToHome();
-			} else {
-				returnCountdown.value = 0;
-				clearEndedCountdown();
-			}
-			return;
-		}
-		returnCountdown.value -= 1;
-	}, 1000);
-}
-
-function clearEndedCountdown() {
-	if (returnHomeTimer) clearInterval(returnHomeTimer);
-	returnHomeTimer = null;
-}
-
-function returnToHome() {
-	clearEndedCountdown();
-	router.push({ name: "Home" });
 }
 
 async function rejoinMeeting() {
-	clearEndedCountdown();
 	callEnded.value = false;
 	connectionState.$reset();
 	if (session.isLoggedIn) {
@@ -844,7 +816,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-	clearEndedCountdown();
 	window.removeEventListener("keydown", keyboardShortcuts.handleKeyDown);
 	window.removeEventListener("keyup", keyboardShortcuts.handleKeyUp);
 	document.removeEventListener("fullscreenchange", syncFullscreenState);
