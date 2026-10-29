@@ -85,7 +85,6 @@
 					<p class="mt-8 text-xs text-gray-500">Mã cuộc họp <span class="ml-1 font-medium text-gray-700">{{ meetingId }}</span></p>
 				</section>
 			</main>
-			</div>
 		</div>
 
 		<!-- Preview mode -->
