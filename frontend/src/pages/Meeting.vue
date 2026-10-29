@@ -61,11 +61,17 @@
 		</div>
 
 		<!-- Meeting ended state -->
-		<div v-else-if="callEnded" class="flex-1 flex items-center justify-center bg-gray-50 px-6">
-			<div class="w-full max-w-md rounded-lg border border-gray-200 bg-white px-8 py-10 text-center shadow-sm">
-				<div class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-2xl font-semibold">✓</div>
-				<h1 class="text-xl font-semibold text-gray-900">Cuộc họp đã kết thúc</h1>
-				<p class="mt-2 text-sm text-gray-600">Bạn đã rời khỏi cuộc họp. Có thể đóng cửa sổ này.</p>
+		<div v-else-if="callEnded" class="relative flex-1 bg-white px-6">
+			<div class="absolute left-6 top-6 flex items-center gap-3 text-sm text-gray-700">
+				<div class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-600 font-medium text-gray-800">{{ returnCountdown }}</div>
+				<span>{{ returnCountdown ? 'Đang quay lại màn hình chính' : 'Bạn có thể đóng cửa sổ này' }}</span>
+			</div>
+			<div class="mx-auto flex max-w-2xl flex-col items-center pt-24 text-center sm:pt-28">
+				<h1 class="text-3xl font-normal text-gray-700">Bạn đã rời khỏi cuộc họp</h1>
+				<div class="mt-8 flex flex-wrap justify-center gap-3">
+					<Button variant="outline" @click="rejoinMeeting">Tham gia lại</Button>
+					<Button variant="solid" @click="returnToHome">Quay lại màn hình chính</Button>
+				</div>
 			</div>
 		</div>
 
@@ -325,6 +331,8 @@ const {
 } = useMeetingDoc();
 const meetingDoc = getMeetingDoc(meetingId.value);
 const callEnded = ref(false);
+const returnCountdown = ref(60);
+let returnHomeTimer: ReturnType<typeof setInterval> | null = null;
 
 // --- Background effects & noise cancellation ---
 const backgroundEffects = useBackgroundEffects();
@@ -356,7 +364,7 @@ const sfuConnection = useSFUConnection({
 	gridLayout,
 	meetingId: meetingId.value,
 	onCallEnded: () => {
-		callEnded.value = true;
+		showCallEndedScreen();
 	},
 	notifiedLobbyUsers,
 	onHostMutedYou: () => {
@@ -651,6 +659,45 @@ const isReactionPickerOpen = ref(false);
 const isFullscreen = ref(false);
 const isToolbarVisible = ref(true);
 
+function showCallEndedScreen() {
+	callEnded.value = true;
+	returnCountdown.value = 60;
+	clearEndedCountdown();
+	returnHomeTimer = setInterval(() => {
+		if (returnCountdown.value <= 1) {
+			if (session.isLoggedIn) {
+				returnToHome();
+			} else {
+				returnCountdown.value = 0;
+				clearEndedCountdown();
+			}
+			return;
+		}
+		returnCountdown.value -= 1;
+	}, 1000);
+}
+
+function clearEndedCountdown() {
+	if (returnHomeTimer) clearInterval(returnHomeTimer);
+	returnHomeTimer = null;
+}
+
+function returnToHome() {
+	clearEndedCountdown();
+	router.push({ name: "Home" });
+}
+
+async function rejoinMeeting() {
+	clearEndedCountdown();
+	callEnded.value = false;
+	connectionState.$reset();
+	if (session.isLoggedIn) {
+		await sfuConnection.joinMeetingRoom();
+		return;
+	}
+	connectionState.isInPreview = true;
+}
+
 // --- Extracted handlers ---
 const handlers = useMeetingHandlers({
 	connectionState,
@@ -797,6 +844,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+	clearEndedCountdown();
 	window.removeEventListener("keydown", keyboardShortcuts.handleKeyDown);
 	window.removeEventListener("keyup", keyboardShortcuts.handleKeyUp);
 	document.removeEventListener("fullscreenchange", syncFullscreenState);
