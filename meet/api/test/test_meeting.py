@@ -156,6 +156,12 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 			}
 		).insert(ignore_permissions=True)
 
+		member_only = self._create_meeting(self.host_email)
+		member_only.host_name = host_name
+		member_only.created_by_email = self.host_email
+		member_only.add_user_to_table("members", self.member_email)
+		member_only.save(ignore_permissions=True)
+
 		pending = self._create_meeting(self.host_email)
 		pending.host_name = host_name
 		pending.created_by_email = self.host_email
@@ -184,11 +190,15 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		rows = get_user_meetings(self.member_email, expected_host_name=host_name)
 		meetings = {row.name: row for row in rows}
 
-		self.assertEqual(set(meetings), {created.name, joined.name})
+		self.assertEqual(set(meetings), {created.name, joined.name, member_only.name})
 		self.assertTrue(meetings[created.name].is_created_by_me)
 		self.assertTrue(meetings[created.name].is_participant)
+		self.assertFalse(meetings[created.name].has_started)
 		self.assertFalse(meetings[joined.name].is_created_by_me)
 		self.assertTrue(meetings[joined.name].is_participant)
+		self.assertTrue(meetings[joined.name].has_started)
+		self.assertTrue(meetings[member_only.name].is_participant)
+		self.assertTrue(meetings[member_only.name].has_started)
 
 		self.assertEqual(get_user_meeting(joined.name, self.member_email, host_name).name, joined.name)
 		with self.assertRaises(frappe.PermissionError):

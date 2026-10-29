@@ -38,13 +38,13 @@
 					</form>
 				</div>
 
-				<div class="flex items-center">
+				<div v-if="session.isLoggedIn" class="flex items-center">
 					<div class="flex-grow h-px bg-gray-300"></div>
 					<span class="px-4 text-sm text-gray-500">hoặc</span>
 					<div class="flex-grow h-px bg-gray-300"></div>
 				</div>
 
-				<div class="relative inline-block">
+				<div v-if="session.isLoggedIn" class="relative inline-block">
 					<div class="flex items-center justify-center">
 						<Button
 							variant="solid"
@@ -93,6 +93,7 @@ import {
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useConnectionState } from "../composables/useConnectionState";
+import { session } from "../data/session";
 import FrappeMeetingLogo from "../icons/FrappeMeetingLogo.vue";
 
 const router = useRouter();

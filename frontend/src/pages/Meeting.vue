@@ -82,6 +82,9 @@
 					<div class="mt-8 flex justify-center">
 						<Button variant="solid" size="lg" class="min-w-40" style="background-color: #e54e17; border-color: #e54e17; color: #ffffff" @click="rejoinMeeting">Tham gia lại</Button>
 					</div>
+					<div class="mt-3 flex justify-center">
+						<Button variant="outline" size="lg" class="min-w-40" @click="router.push({ name: 'Home' })">Quay lại trang chủ</Button>
+					</div>
 					<p class="mt-8 text-xs" style="color: #6b7280">Mã cuộc họp <span class="ml-1 font-medium" style="color: #374151">{{ meetingId }}</span></p>
 				</section>
 			</main>

@@ -398,9 +398,57 @@ def get_user_meetings(
 		limit_start=start,
 		limit_page_length=limit,
 	)
+	meeting_by_id = {meeting.name: meeting for meeting in meetings}
+	started_ids = {
+		row.meeting
+		for row in frappe.get_all(
+			"User Domain",
+			filters={"meeting": ["in", list(meeting_by_id)], "host_name": host_name},
+			fields=["meeting", "user_id"],
+		)
+		if row.meeting and row.user_id
+	}
+	member_rows = frappe.get_all(
+		"Sae Meeting User",
+		filters={
+			"parent": ["in", list(meeting_by_id)],
+			"parenttype": "Sae Meeting",
+		},
+		fields=["parent", "user"],
+	)
+	creator_emails = {
+		(meeting.created_by_email or "").strip().lower()
+		for meeting in meetings
+		if meeting.created_by_email
+	}
+	creator_users = {}
+	if creator_emails:
+		creator_users = {
+			(user.email or "").strip().lower(): user.name
+			for user in frappe.get_all(
+				"User",
+				filters={"email": ["in", list(creator_emails)]},
+				fields=["name", "email"],
+			)
+			if user.email
+		}
+	for member in member_rows:
+		meeting = meeting_by_id.get(member.parent)
+		if not meeting or not member.user:
+			continue
+		creator_email = (meeting.created_by_email or "").strip().lower()
+		auto_added_users = {
+			meeting.owner,
+			creator_email,
+			creator_users.get(creator_email),
+		}
+		if member.user not in auto_added_users:
+			started_ids.add(meeting.name)
+
 	for meeting in meetings:
 		meeting.is_created_by_me = meeting.name in created_ids
 		meeting.is_participant = meeting.name in joined_ids
+		meeting.has_started = meeting.name in started_ids
 	return meetings
 
 

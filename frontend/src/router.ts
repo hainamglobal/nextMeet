@@ -8,6 +8,7 @@ const routes: RouteRecordRaw[] = [
 		path: "/",
 		name: "Home",
 		component: () => import("@/pages/Home.vue"),
+		meta: { allowGuest: true },
 	},
 	{
 		path: "/audio-test",
@@ -62,7 +63,7 @@ router.beforeEach(async (to, _from, next) => {
 		}
 	}
 
-	if (to.meta?.allowGuest && to.name === "Meeting") {
+	if (to.meta?.allowGuest) {
 		return next();
 	}
 
