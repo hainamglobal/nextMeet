@@ -12,13 +12,13 @@
 				<div class="space-y-3">
 					<form @submit.prevent="joinMeeting" class="space-y-3" data-testid="join-meeting-form">
 						<label class="block text-sm font-medium text-gray-700 text-left">
-							Tham gia bằng mã cuộc họp
+							Tham gia bằng mã hoặc liên kết cuộc họp
 						</label>
 						<div class="flex gap-3 items-center">
 							<div class="flex-1">
 								<FormControl
 									v-model="meetingCode"
-									placeholder="abcd-efgh-ijkl"
+								placeholder="abcd-efgh-ijkl hoặc dán liên kết cuộc họp"
 									size="lg"
 									:error="meetingCodeError"
 									class="text-center sm:text-left"
@@ -29,7 +29,7 @@
 								size="lg"
 								type="submit"
 								class="whitespace-nowrap px-6 py-3"
-								:disabled="!isMeetingCodeValid(meetingCode)"
+								:disabled="!isMeetingInputValid(meetingCode)"
 								data-testid="join-meeting-button"
 							>
 								Tham gia
@@ -95,6 +95,7 @@ import { useRouter } from "vue-router";
 import { useConnectionState } from "../composables/useConnectionState";
 import { session } from "../data/session";
 import FrappeMeetingLogo from "../icons/FrappeMeetingLogo.vue";
+import { parseMeetingInput } from "../utils/meetingInput";
 
 const router = useRouter();
 const connectionState = useConnectionState();
@@ -127,27 +128,18 @@ const startNewMeeting = (meetingType) => {
 
 const joinMeeting = () => {
 	meetingCodeError.value = "";
-
-	if (!meetingCode.value.trim()) {
-		meetingCodeError.value = "Please enter a meeting code";
-		return;
-	}
-
-	if (!isMeetingCodeValid(meetingCode.value.trim())) {
-		meetingCodeError.value =
-			"Please enter a valid meeting code (format: xxxx-xxxx-xxxx)";
+	const parsedInput = parseMeetingInput(meetingCode.value, window.location.origin);
+	if (!parsedInput) {
+		meetingCodeError.value = "Vui lòng nhập mã phòng hợp lệ hoặc dán liên kết cuộc họp.";
 		return;
 	}
 
 	router.push({
 		name: "Meeting",
-		params: { meetingId: meetingCode.value.trim() },
+		params: { meetingId: parsedInput.meetingId },
+		hash: parsedInput.hash,
 	});
 };
 
-const isMeetingCodeValid = (code) => {
-	// Ensure code is of the form xxxx-xxxx-xxxx
-	const regex = /^[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}$/;
-	return regex.test(code);
-};
+const isMeetingInputValid = value => Boolean(parseMeetingInput(value, window.location.origin));
 </script>
