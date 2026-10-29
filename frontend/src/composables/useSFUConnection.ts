@@ -6,7 +6,6 @@ import {
 	type Ref,
 	shallowRef,
 } from "vue";
-import { useRouter } from "vue-router";
 import { useSocket } from "../socket";
 import audioNotificationManager from "../utils/audioNotifications";
 import { getErrorMessage } from "../utils/error";
@@ -63,6 +62,7 @@ export function useSFUConnection(deps: {
 	onScreenShareStarted: (data: SFUScreenShareData) => void;
 	onScreenShareStopped: (data: SFUScreenShareData) => void;
 	onActiveSpeakerChanged: (participantIds: string[]) => void;
+	onCallEnded: () => void;
 }): SFUConnectionAPI {
 	const {
 		connectionState,
@@ -77,9 +77,8 @@ export function useSFUConnection(deps: {
 		onScreenShareStarted,
 		onScreenShareStopped,
 		onActiveSpeakerChanged,
+		onCallEnded,
 	} = deps;
-
-	const router = useRouter();
 	const socket = useSocket();
 
 	const chatStore = useChatStore();
@@ -784,10 +783,10 @@ export function useSFUConnection(deps: {
 
 			sfuManager.value = null;
 
-			router.push({ name: "Home" });
+			onCallEnded();
 		} catch (error) {
 			console.error("Error ending call:", error);
-			router.push({ name: "Home" });
+			onCallEnded();
 		}
 	};
 

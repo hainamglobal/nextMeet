@@ -60,6 +60,15 @@
 			</div>
 		</div>
 
+		<!-- Meeting ended state -->
+		<div v-else-if="callEnded" class="flex-1 flex items-center justify-center bg-gray-50 px-6">
+			<div class="w-full max-w-md rounded-lg border border-gray-200 bg-white px-8 py-10 text-center shadow-sm">
+				<div class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-2xl font-semibold">✓</div>
+				<h1 class="text-xl font-semibold text-gray-900">Cuộc họp đã kết thúc</h1>
+				<p class="mt-2 text-sm text-gray-600">Bạn đã rời khỏi cuộc họp. Có thể đóng cửa sổ này.</p>
+			</div>
+		</div>
+
 		<!-- Preview mode -->
 		<MeetingPreview
 			v-else-if="showPreview"
@@ -315,6 +324,7 @@ const {
 	meetingCoHosts,
 } = useMeetingDoc();
 const meetingDoc = getMeetingDoc(meetingId.value);
+const callEnded = ref(false);
 
 // --- Background effects & noise cancellation ---
 const backgroundEffects = useBackgroundEffects();
@@ -345,6 +355,9 @@ const sfuConnection = useSFUConnection({
 	lobbyStore,
 	gridLayout,
 	meetingId: meetingId.value,
+	onCallEnded: () => {
+		callEnded.value = true;
+	},
 	notifiedLobbyUsers,
 	onHostMutedYou: () => {
 		if (mediaState.isMicOn) {
