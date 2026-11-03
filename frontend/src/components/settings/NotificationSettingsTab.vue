@@ -3,7 +3,7 @@
 		:description="'Tùy chỉnh âm báo cho các sự kiện trong cuộc họp'"
 	>
 		<template #title>
-			Notifications
+			Thông báo
 		</template>
 		<template #content>
 			<div class="space-y-6">

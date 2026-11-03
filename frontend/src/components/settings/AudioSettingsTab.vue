@@ -1,7 +1,7 @@
 <template>
 	<SettingsLayoutBase :description="'Thiết lập âm thanh và micrô'">
 		<template #title>
-			Audio
+			Âm thanh
 		</template>
 		<template #content>
 			<div class="space-y-6">

@@ -3,7 +3,7 @@
 		:description="'Chọn camera, micrô và loa bạn muốn sử dụng'"
 	>
 		<template #title>
-			Devices
+			Thiết bị
 		</template>
 		<template #content>
 			<LoadingText

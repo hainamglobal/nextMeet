@@ -8,7 +8,7 @@
 				<div class="w-full" v-if="isMobile()">
 					<h3
 						class="text-2xl font-semibold leading-6 text-ink-gray-9 px-4 py-6">
-						Settings
+						Cài đặt
 					</h3>
 					<FTabs :tabs="flatTabs" v-model="tabIndex" as="div">
 						<template #tab-item="{ tab, selected }">
@@ -38,7 +38,7 @@
 						class="flex w-52 shrink-0 flex-col bg-surface-gray-1 p-2 md:overflow-y-auto hide-scrollbar border-outline-gray-2 border-r"
 					>
 						<h1 class="px-2 pt-2 text-lg font-semibold mb-2">
-							Settings
+							Cài đặt
 						</h1>
 						<div v-for="tab in tabs">
 							<div

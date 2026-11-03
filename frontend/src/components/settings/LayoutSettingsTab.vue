@@ -3,7 +3,7 @@
 		:description="'Tùy chỉnh bố cục giao diện cuộc họp'"
 	>
 		<template #title>
-			Layout
+			Bố cục
 		</template>
 		<template #content>
 			<div class="space-y-6">
