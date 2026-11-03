@@ -14,7 +14,7 @@
 			>
 				<div class="flex items-center justify-between p-4 border-b border-gray-200">
 					<div class="text-ink-gray-900 text-base font-medium">
-						People ({{ totalParticipantCount }})
+						Người tham gia ({{ totalParticipantCount }})
 					</div>
 					<lucide-x
 						@click="$emit('close')"
@@ -26,7 +26,7 @@
 					<FormControl
 						v-model="searchQuery"
 						type="text"
-						placeholder="Search people"
+						placeholder="Tìm người tham gia"
 						autocomplete="off"
 						data-testid="people-search"
 					>
@@ -48,7 +48,7 @@
 					<!-- All Participants -->
 					<div v-if="allVisibleParticipants.length > 0">
 						<div class="px-4 py-2 text-xs font-medium text-ink-gray-5 tracking-wide bg-surface-gray-1">
-							Participants
+							Danh sách tham gia
 						</div>
 						<PeopleParticipantTile
 							v-for="participant in allVisibleParticipants"
@@ -68,7 +68,7 @@
 						v-if="allVisibleParticipants.length === 0 && filteredLobbyUsers.length === 0"
 						class="text-ink-gray-5 text-sm text-center mt-8 px-4"
 					>
-						{{ searchQuery ? "No participants found" : "No other participants" }}
+						{{ searchQuery ? "Không tìm thấy người tham gia" : "Chưa có người tham gia khác" }}
 					</div>
 				</div>
 			</div>

@@ -81,7 +81,7 @@ export function useChat(deps: {
 
 		sfuClient.on("sfu_error", (data: Record<string, unknown>) => {
 			if (data?.code === "HOST_ONLY_CHAT") {
-				toast.error("The host has restricted chat to hosts and co-hosts only.");
+				toast.error("Chủ trì chỉ cho phép chủ trì và đồng chủ trì trò chuyện.");
 				chatStore.hostOnlyChat = true;
 			}
 		});
@@ -130,7 +130,7 @@ export function useChat(deps: {
 			}
 		} catch (error) {
 			console.error("Failed to save chat message:", error);
-			toast.error("Could not save this message");
+			toast.error("Không thể lưu tin nhắn này");
 		}
 	};
 

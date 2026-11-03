@@ -61,7 +61,7 @@
 			v-if="showReaction && currentReaction"
 			class="absolute top-1 px-2 py-1 rounded-md text-xl pointer-events-none animate-pop"
 			:class="{ 'left-2': !isHandRaised, 'left-10': isHandRaised }"
-			:aria-label="`Reaction ${currentReaction.emoji} from ${resolvedDisplayName}`"
+			:aria-label="`Biểu cảm ${currentReaction.emoji} từ ${resolvedDisplayName}`"
 			role="img"
 		>
 			<span class="text-2xl">{{ currentReaction.emoji }}</span>
@@ -71,7 +71,7 @@
 		<div
 			v-if="showRaisedHand && isHandRaised"
 			class="absolute top-2 left-2 px-2 py-1 rounded-full !bg-[#e54e17] text-white pointer-events-none flex items-center justify-center"
-			:aria-label="`${resolvedDisplayName} has raised their hand`"
+			:aria-label="`${resolvedDisplayName} đã giơ tay`"
 		>
 			<lucide-hand class="w-4 h-4" :class="{ wave: isAnimating }" />
 		</div>
@@ -115,7 +115,7 @@
 				type="button"
 				class="rounded-full p-1.5 hover:bg-gray-600 transition-colors"
 				:class="{ 'bg-gray-600': isPinned }"
-				:title="isPinned ? 'Unpin participant' : 'Pin participant'"
+				:title="isPinned ? 'Bỏ ghim người tham gia' : 'Ghim người tham gia'"
 				@click="togglePin"
 			>
 				<lucide-pin-off v-if="isPinned" class="w-3.5 h-3.5" />
@@ -125,7 +125,7 @@
 				v-if="canShowHostControls && isAudioEnabled"
 				type="button"
 				class="rounded-full p-1.5 hover:bg-gray-600 transition-colors"
-				title="Mute participant"
+				title="Tắt tiếng người tham gia"
 				@click="handleMute"
 			>
 				<lucide-mic-off class="w-3.5 h-3.5" />
@@ -134,7 +134,7 @@
 				v-if="canShowHostControls"
 				type="button"
 				class="rounded-full p-1.5 hover:bg-gray-600 transition-colors"
-				title="Remove participant"
+				title="Xóa người tham gia"
 				@click="showKickDialog = true"
 			>
 				<lucide-user-x class="w-3.5 h-3.5" />

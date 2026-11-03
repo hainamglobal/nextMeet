@@ -6,12 +6,12 @@
 			size: 'sm',
 			actions: [
 				{
-					label: 'Cancel',
+					label: 'Hủy',
 					variant: 'subtle',
 					onClick: () => { showDialog = false; }
 				},
 				{
-					label: 'Remove',
+					label: 'Xóa',
 					variant: 'solid',
 					theme: 'red',
 					onClick: handleKickConfirm
@@ -22,10 +22,10 @@
 		<template #body-content>
 			<div class="space-y-4">
 				<p class="text-base text-ink-gray-7">
-					Are you sure you want to remove <strong>{{ participantName }}</strong> from the meeting?
+					Bạn có chắc muốn xóa <strong>{{ participantName }}</strong> khỏi cuộc họp không?
 				</p>
 				<FormControl
-					label="Ban from this meeting?"
+					label="Chặn người này khỏi cuộc họp?"
 					type="checkbox"
 					v-model="banFromMeeting"
 				/>

@@ -5,8 +5,8 @@
 		<div class="max-w-2xl mx-auto">
 			<div class="bg-white rounded-lg shadow-lg p-8">
 				<div class="text-center mb-8">
-					<h1 class="text-3xl font-bold text-gray-900 mb-2">Audio Notification Test</h1>
-					<p class="text-gray-600">Test and tune the meeting notification sounds</p>
+					<h1 class="text-3xl font-bold text-gray-900 mb-2">Kiểm tra âm báo</h1>
+					<p class="text-gray-600">Kiểm tra và điều chỉnh âm thanh thông báo cuộc họp</p>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -17,8 +17,8 @@
 								<lucide-user-plus class="w-5 h-5 text-green-600" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-green-900">User Joined</h3>
-								<p class="text-sm text-green-700">Someone joins the meeting</p>
+								<h3 class="font-semibold text-green-900">Người tham gia vào</h3>
+								<p class="text-sm text-green-700">Có người tham gia cuộc họp</p>
 							</div>
 						</div>
 						<Button
@@ -31,10 +31,10 @@
 							<template #prefix>
 								<lucide-play class="w-4 h-4" />
 							</template>
-							Play Join Sound
+							Phát âm báo có người tham gia
 						</Button>
 						<div class="mt-3 text-xs text-green-600">
-							<strong>Current:</strong> C4 → G4 → E5 → C5 (0.5s, 20% volume)
+							<strong>Hiện tại:</strong> C4 → G4 → E5 → C5 (0.5s, âm lượng 20%)
 						</div>
 					</div>
 
@@ -45,8 +45,8 @@
 								<lucide-user-minus class="w-5 h-5 text-red-600" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-red-900">User Left</h3>
-								<p class="text-sm text-red-700">Someone leaves the meeting</p>
+								<h3 class="font-semibold text-red-900">Người rời đi</h3>
+								<p class="text-sm text-red-700">Có người rời cuộc họp</p>
 							</div>
 						</div>
 						<Button
@@ -59,10 +59,10 @@
 							<template #prefix>
 								<lucide-play class="w-4 h-4" />
 							</template>
-							Play Leave Sound
+							Phát âm báo có người rời đi
 						</Button>
 						<div class="mt-3 text-xs text-red-600">
-							<strong>Current:</strong> G4 → E4 → C4 (0.4s, 20% volume)
+							<strong>Hiện tại:</strong> G4 → E4 → C4 (0.4s, âm lượng 20%)
 						</div>
 					</div>
 
@@ -73,8 +73,8 @@
 								<lucide-user-check class="w-5 h-5 text-blue-600" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-blue-900">Join Request</h3>
-								<p class="text-sm text-blue-700">Someone requests to join</p>
+								<h3 class="font-semibold text-blue-900">Yêu cầu tham gia</h3>
+								<p class="text-sm text-blue-700">Có người yêu cầu tham gia</p>
 							</div>
 						</div>
 						<Button
@@ -87,10 +87,10 @@
 							<template #prefix>
 								<lucide-play class="w-4 h-4" />
 							</template>
-							Play Request Sound
+							Phát âm báo yêu cầu tham gia
 						</Button>
 						<div class="mt-3 text-xs text-blue-600">
-							<strong>Current:</strong> F4 → A4 → F4 → C5 (0.6s, 25% volume)
+							<strong>Hiện tại:</strong> F4 → A4 → F4 → C5 (0.6s, âm lượng 25%)
 						</div>
 					</div>
 
@@ -101,8 +101,8 @@
 								<lucide-message-circle class="w-5 h-5 text-purple-600" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-purple-900">Chat Message</h3>
-								<p class="text-sm text-purple-700">New chat message received</p>
+								<h3 class="font-semibold text-purple-900">Tin nhắn trò chuyện</h3>
+								<p class="text-sm text-purple-700">Nhận được tin nhắn mới</p>
 							</div>
 						</div>
 						<Button
@@ -115,10 +115,10 @@
 							<template #prefix>
 								<lucide-play class="w-4 h-4" />
 							</template>
-							Play Chat Sound
+							Phát âm báo tin nhắn
 						</Button>
 						<div class="mt-3 text-xs text-purple-600">
-							<strong>Current:</strong> E4 → G4 (0.25s, 20% volume)
+							<strong>Hiện tại:</strong> E4 → G4 (0.25s, âm lượng 20%)
 						</div>
 					</div>
 
@@ -129,8 +129,8 @@
 								<lucide-hand class="w-5 h-5 text-orange-600" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-orange-900">Hand Raised</h3>
-								<p class="text-sm text-orange-700">Someone raises their hand</p>
+								<h3 class="font-semibold text-orange-900">Giơ tay</h3>
+								<p class="text-sm text-orange-700">Có người giơ tay</p>
 							</div>
 						</div>
 						<Button
@@ -143,10 +143,10 @@
 							<template #prefix>
 								<lucide-play class="w-4 h-4" />
 							</template>
-							Play Hand Raise Sound
+							Phát âm báo giơ tay
 						</Button>
 						<div class="mt-3 text-xs text-orange-600">
-							<strong>Current:</strong> C5 → E5 → G5 (0.5s, 20% volume)
+							<strong>Hiện tại:</strong> C5 → E5 → G5 (0.5s, âm lượng 20%)
 						</div>
 					</div>
 				</div>
@@ -164,23 +164,23 @@
 							<template #prefix>
 								<lucide-play-circle class="w-5 h-5" />
 							</template>
-							Play All Notifications (Sequential)
+							Phát lần lượt tất cả âm báo
 						</Button>
 						<p class="text-sm text-gray-500">
-							Test all sounds in sequence with 1-second delays
+							Phát lần lượt từng âm thanh, cách nhau 1 giây
 						</p>
 					</div>
 				</div>
 
 				<!-- Instructions -->
 				<div class="mt-6 p-4 bg-gray-50 rounded-lg">
-					<h4 class="font-semibold text-gray-900 mb-2">Testing Tips:</h4>
+					<h4 class="font-semibold text-gray-900 mb-2">Hướng dẫn kiểm tra:</h4>
 					<ul class="text-sm text-gray-600 space-y-1">
-						<li>• Click individual buttons to test each notification</li>
-						<li>• Use "Play All" to compare sounds in sequence</li>
-						<li>• Edit frequencies/timing in <code class="bg-gray-200 px-1 rounded">audioNotifications.ts</code></li>
-						<li>• Refresh page after code changes to test updates</li>
-						<li>• Check browser console for any AudioContext errors</li>
+						<li>• Nhấn từng nút để kiểm tra từng âm báo</li>
+						<li>• Chọn "Phát tất cả" để so sánh lần lượt các âm thanh</li>
+						<li>• Chỉnh tần số/thời lượng trong <code class="bg-gray-200 px-1 rounded">audioNotifications.ts</code></li>
+						<li>• Tải lại trang sau khi sửa mã để kiểm tra thay đổi</li>
+						<li>• Kiểm tra bảng điều khiển trình duyệt nếu có lỗi AudioContext</li>
 					</ul>
 				</div>
 			</div>

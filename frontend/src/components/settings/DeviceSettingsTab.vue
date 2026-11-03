@@ -1,6 +1,6 @@
 <template>
 	<SettingsLayoutBase
-		:description="'Select your preferred camera, microphone, and speaker'"
+		:description="'Chọn camera, micrô và loa bạn muốn sử dụng'"
 	>
 		<template #title>
 			Devices
@@ -9,12 +9,12 @@
 			<LoadingText
 				v-if="!cameraSelectOptions.length && !micSelectOptions.length && !speakerSelectOptions.length"
 				class="mx-auto w-max my-32"
-				:text="'Loading devices...'"
+				:text="'Đang tải thiết bị...'"
 			/>
 			<div v-else class="space-y-6">
 				<div class="space-y-2">
 					<FormControl label="Camera" type="autocomplete" v-model="selectedCameraIdLocal"
-						:options="cameraSelectOptions" placeholder="Select camera">
+						:options="cameraSelectOptions" placeholder="Chọn camera">
 						<template #prefix>
 							<lucide-camera class="mr-2 h-4 w-4" />
 						</template>
@@ -25,8 +25,8 @@
 				</div>
 
 				<div class="space-y-2 flex gap-4 items-center">
-					<FormControl class="w-full" label="Microphone" type="autocomplete" v-model="selectedMicIdLocal"
-						:options="micSelectOptions" placeholder="Select microphone">
+					<FormControl class="w-full" label="Micrô" type="autocomplete" v-model="selectedMicIdLocal"
+						:options="micSelectOptions" placeholder="Chọn micrô">
 						<template #prefix>
 							<lucide-mic class="mr-2 h-4 w-4" />
 						</template>
@@ -42,8 +42,8 @@
 				</div>
 
 				<div class="space-y-2 flex gap-2">
-					<FormControl class="w-full" label="Speaker" type="autocomplete" v-model="selectedSpeakerIdLocal"
-						:options="speakerSelectOptions" placeholder="Select speaker">
+					<FormControl class="w-full" label="Loa" type="autocomplete" v-model="selectedSpeakerIdLocal"
+						:options="speakerSelectOptions" placeholder="Chọn loa">
 						<template #prefix>
 							<lucide-speaker class="mr-2 h-4 w-4" />
 						</template>

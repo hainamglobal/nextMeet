@@ -1,6 +1,6 @@
 <template>
 	<SettingsLayoutBase
-		:description="'Customize notification sounds for meeting events'"
+		:description="'Tùy chỉnh âm báo cho các sự kiện trong cuộc họp'"
 	>
 		<template #title>
 			Notifications
@@ -9,8 +9,8 @@
 			<div class="space-y-6">
 				<Switch
 					class="w-full"
-					label="Enable notification sounds"
-					description="Play sounds for all meeting events"
+					label="Bật âm thanh thông báo"
+					description="Phát âm thanh cho mọi sự kiện trong cuộc họp"
 					v-model="notificationChimesEnabledLocal"
 				/>
 			</div>

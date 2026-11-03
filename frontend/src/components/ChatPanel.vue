@@ -13,7 +13,7 @@
 				data-testid="chat-panel"
 			>
 				<div class="flex items-center justify-between p-4 border-b border-gray-200">
-					<div class="text-gray-900 text-base font-medium">Chat</div>
+					<div class="text-gray-900 text-base font-medium">Trò chuyện</div>
 					<lucide-x
 						@click="$emit('close')"
 						class="w-4 h-4 text-gray-900 cursor-pointer hover:text-gray-600"
@@ -49,7 +49,7 @@
 						</div>
 					</div>
 					<div v-if="resolvedMessages.length === 0" class="text-gray-500 text-sm text-center mt-8">
-						No messages yet
+						Chưa có tin nhắn nào
 					</div>
 				</div>
 
@@ -60,12 +60,12 @@
 								size="md"
 								v-model="draft"
 								@keydown="handleKeydown"
-								placeholder="Type a message"
+								placeholder="Nhập tin nhắn"
 								class="flex-1"
 								autocomplete="off"
 								data-testid="chat-input"
 							/>
-							<Button size="md" type="submit" variant="outline" data-testid="chat-send"> Send </Button>
+							<Button size="md" type="submit" variant="outline" data-testid="chat-send"> Gửi </Button>
 						</div>
 						<EmojiPicker
 							:show="showEmojiPicker"
@@ -75,7 +75,7 @@
 						/>
 					</template>
 					<div v-else class="text-center text-sm text-gray-500 py-3 bg-gray-50 rounded border border-gray-200 m-2">
-						The host has restricted chat to hosts and co-hosts only.
+						Chủ trì chỉ cho phép chủ trì và đồng chủ trì trò chuyện.
 					</div>
 				</form>
 			</div>

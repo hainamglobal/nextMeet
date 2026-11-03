@@ -22,9 +22,9 @@
 				<span class="text-sm font-medium text-ink-black truncate">
 					{{ participant.user_name }}
 				</span>
-				<span v-if="isCurrentUser" class="text-xs text-ink-gray-5">(You)</span>
-				<Badge v-if="isHost" theme="gray" size="sm">Host</Badge>
-				<Badge v-if="participant.is_guest" theme="gray" size="sm">Guest</Badge>
+				<span v-if="isCurrentUser" class="text-xs text-ink-gray-5">(Bạn)</span>
+				<Badge v-if="isHost" theme="gray" size="sm">Chủ trì</Badge>
+				<Badge v-if="participant.is_guest" theme="gray" size="sm">Khách</Badge>
 			</div>
 		</div>
 
@@ -33,7 +33,7 @@
 			<div v-if="isHandRaised" class="w-8 h-8 flex items-center justify-center">
 				<div
 					class="rounded-full bg-[#e54e17] text-white p-1"
-					:title="`${participant.user_name || participant.user_id} has raised their hand`"
+					:title="`${participant.user_name || participant.user_id} đã giơ tay`"
 				>
 					<lucide-hand class="w-4 h-4" />
 				</div>
@@ -141,25 +141,25 @@ const hostOptions = computed(() => {
 	return [
 		{
 			icon: "mic-off",
-			label: "Mute",
+			label: "Tắt tiếng",
 			condition: () => !!props.participant.audio_enabled,
 			onClick: () => emit("muteParticipant", props.participant.user_id),
 		},
 		{
 			icon: "slash", // TODO: switch to `hand` if we integrate Lucide instead of FeatherIcon
-			label: "Lower Hand",
+			label: "Hạ tay",
 			condition: () => isHandRaised.value,
 			onClick: () => emit("lowerHand", props.participant.user_id),
 		},
 		{
 			icon: "user-plus",
-			label: "Promote to Co-host",
+			label: "Chỉ định đồng chủ trì",
 			condition: () => props.canPromoteToCohost,
 			onClick: () => emit("promoteToCohost", props.participant.user_id),
 		},
 		{
 			icon: "user-x",
-			label: "Remove",
+			label: "Xóa khỏi cuộc họp",
 			onClick: () => {
 				showKickDialog.value = true;
 			},

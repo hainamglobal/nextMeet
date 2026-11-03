@@ -1,7 +1,7 @@
 <template>
 	<SettingsLayoutBase
-		title="Meeting Access"
-		description="Manage how participants can join and interact in the meeting."
+		title="Quyền truy cập cuộc họp"
+		description="Quản lý cách người tham gia vào và tương tác trong cuộc họp."
 	>
 		<template #content>
 			<div class="space-y-6">
@@ -9,8 +9,8 @@
 				<div class="space-y-3">
 					<Switch
 						class="w-full !px-0"
-						label="Allow Guests"
-						description="Allow non-registered users to join this meeting"
+						label="Cho phép khách"
+						description="Cho phép người chưa đăng ký tham gia cuộc họp này"
 						v-model="allowGuest"
 						:disabled="meetingDoc.updateSettings.loading || meetingDoc.get.loading"
 					/>
@@ -21,14 +21,14 @@
 					<FormControl
 						v-model="meetingType"
 						type="select"
-						label="Control who can join this meeting"
+						label="Kiểm soát người có thể tham gia cuộc họp này"
 						:options="[
 							{
-								label: 'Open - Anyone can join directly',
+								label: 'Mở - Mọi người có thể tham gia ngay',
 								value: 'open',
 							},
 							{
-								label: 'Restricted - Requires host approval',
+								label: 'Hạn chế - Cần chủ trì phê duyệt',
 								value: 'restricted',
 							},
 						]"
@@ -39,8 +39,8 @@
 				<div class="space-y-3">
                     <Switch
                         class="w-full !px-0"
-                        label="Host Only Chat"
-                        description="Restrict chat so only hosts and co-hosts can send messages"
+                        label="Chỉ chủ trì được trò chuyện"
+                        description="Chỉ chủ trì và đồng chủ trì mới có thể gửi tin nhắn"
                         v-model="hostOnlyChat"
                         :disabled="meetingDoc.updateSettings.loading || meetingDoc.get.loading"
                     />
@@ -104,7 +104,7 @@ const saveSettings = debounce(async () => {
 		await meetingDoc.reload();
 	} catch (error) {
 		console.error("Failed to update meeting settings:", error);
-		toast.error("Failed to update meeting settings");
+		toast.error("Không thể cập nhật cài đặt cuộc họp");
 
 		if (meetingDoc.doc?.host_only_chat !== undefined) {
 			hostOnlyChat.value = !!meetingDoc.doc.host_only_chat;

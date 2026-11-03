@@ -6,11 +6,11 @@
 			</div>
 
 			<h2 class="text-xl font-semibold text-ink-gray-9">
-				Waiting to be admitted
+				Đang chờ được duyệt
 			</h2>
 
 			<p class="text-ink-gray-6 text-base">
-				The meeting host will let you in soon.
+				Chủ trì cuộc họp sẽ cho bạn vào trong ít phút nữa.
 			</p>
 
 			<div class="flex flex-col gap-3">
@@ -22,7 +22,7 @@
 					<template #prefix>
 						<lucide-x class="w-4 h-4" />
 					</template>
-					Leave
+					Rời cuộc họp
 				</Button>
 			</div>
 		</div>

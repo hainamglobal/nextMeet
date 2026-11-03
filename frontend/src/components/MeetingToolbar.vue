@@ -23,7 +23,7 @@
 					:class="{
 						'!bg-[#e54e17] hover:!bg-[#e54e17]': !isMicOn,
 					}"
-					:title="`Toggle Audio (${$platform === 'mac' ? '⌘+D' : 'Ctrl+D'})`"
+					:title="`Bật/tắt micrô (${$platform === 'mac' ? '⌘+D' : 'Ctrl+D'})`"
 					data-testid="toolbar-microphone"
 				>
 					<template #icon>
@@ -41,7 +41,7 @@
 					:class="{
 						'!bg-[#e54e17] hover:!bg-[#e54e17]': !isCameraOn,
 					}"
-					:title="`Toggle Video (${$platform === 'mac' ? '⌘+E' : 'Ctrl+E'})`"
+					:title="`Bật/tắt camera (${$platform === 'mac' ? '⌘+E' : 'Ctrl+E'})`"
 					data-testid="toolbar-camera"
 				>
 					<template #icon>
@@ -60,7 +60,7 @@
 					:class="{
 						'!bg-[#e54e17] hover:!bg-[#e54e17]': isScreenSharing,
 					}"
-					title="Toggle Screen Share"
+					title="Bật/tắt chia sẻ màn hình"
 					data-testid="toolbar-screen-share"
 				>
 					<template #icon>
@@ -86,7 +86,7 @@
 							:class="{
 								'!bg-gray-800 hover:!bg-gray-800': isReactionPickerOpen,
 							}"
-							title="Reactions & Raise Hand"
+							title="Biểu cảm và giơ tay"
 							data-testid="toolbar-reactions"
 						>
 							<template #icon>
@@ -107,7 +107,7 @@
 						:class="{
 							'!bg-gray-800 hover:!bg-gray-800': isChatOpen,
 						}"
-						title="Show Chat"
+						title="Hiện trò chuyện"
 						data-testid="toolbar-chat"
 					>
 						<template #icon>
@@ -137,7 +137,7 @@
 						:class="{
 							'!bg-gray-800 hover:!bg-gray-800': isPeopleOpen,
 						}"
-						title="Show Participants"
+						title="Hiện người tham gia"
 						data-testid="toolbar-people"
 					>
 						<template #icon>
@@ -160,7 +160,7 @@
 								theme="gray"
 								size="2xl"
 								class="!rounded-full p-0 !bg-opacity-90 hover:!bg-opacity-100 transition-all duration-200 hover:scale-105 active:scale-95"
-								title="More options"
+								title="Tùy chọn khác"
 								data-testid="toolbar-more"
 							>
 								<template #icon>
@@ -178,7 +178,7 @@
 					theme="red"
 					size="2xl"
 					class="!rounded-full p-0 !bg-opacity-90 hover:!bg-opacity-100 transition-all duration-200 hover:scale-105 active:scale-95 !bg-red-600 hover:!bg-red-500"
-					title="End Call"
+					 title="Kết thúc cuộc gọi"
 					data-testid="toolbar-end-call"
 				>
 					<template #icon>
@@ -267,7 +267,7 @@ const { isMobile } = useResponsiveGrid();
 const moreOptions = computed(() => [
 	{
 		icon: "settings",
-		label: "Settings",
+		label: "Cài đặt",
 		onClick: () => {
 			showSettingsDialog.value = true;
 			resetHideTimer();
@@ -275,7 +275,7 @@ const moreOptions = computed(() => [
 	},
 	{
 		icon: "info",
-		label: "Meeting information",
+		label: "Thông tin cuộc họp",
 		onClick: () => {
 			showMeetingInfoDialog.value = true;
 			resetHideTimer();
@@ -283,7 +283,7 @@ const moreOptions = computed(() => [
 	},
 	{
 		icon: props.isFullscreen ? "minimize" : "maximize",
-		label: props.isFullscreen ? "Exit full screen" : "Enter full screen",
+		label: props.isFullscreen ? "Thoát toàn màn hình" : "Vào toàn màn hình",
 		onClick: () => {
 			emit("toggle-fullscreen");
 			resetHideTimer();
@@ -291,7 +291,7 @@ const moreOptions = computed(() => [
 	},
 	{
 		icon: LucideBug,
-		label: "Report an issue",
+		label: "Báo cáo sự cố",
 		onClick: () => {
 			emit("report-problem");
 			resetHideTimer(true);
@@ -301,7 +301,7 @@ const moreOptions = computed(() => [
 		? [
 				{
 					icon: "users",
-					label: "People",
+					label: "Người tham gia",
 					onClick: () => {
 						emit("toggle-people");
 						isVisible.value = false;
@@ -309,7 +309,7 @@ const moreOptions = computed(() => [
 				},
 				{
 					icon: "message-square",
-					label: "Chat",
+					label: "Trò chuyện",
 					onClick: () => {
 						emit("toggle-chat");
 						isVisible.value = false;

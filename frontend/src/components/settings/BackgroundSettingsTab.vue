@@ -1,9 +1,9 @@
 <template>
 	<SettingsLayoutBase
-		:description="'Customize your video background with blur effects or virtual backgrounds'"
+		:description="'Tùy chỉnh hình nền video bằng hiệu ứng làm mờ hoặc ảnh nền ảo'"
 	>
 		<template #title>
-			Background
+			Hình nền
 		</template>
 		<template #content>
 			<!-- Video Preview -->
@@ -21,7 +21,7 @@
 						<div v-if="isLoadingPreview" class="text-white text-center">
 							<lucide-loader class="mx-auto mb-2 w-8 h-8 animate-spin" />
 							<p class="text-sm">
-								Loading preview...
+								Đang tải bản xem trước...
 							</p>
 						</div>
 					</div>
@@ -96,8 +96,8 @@
 					</div>
 					<div class="ml-3">
 						<p class="text-sm text-yellow-800">
-							<strong>Performance Warning:</strong> Enabling background effects may slow down your computer,
-							especially on older devices.
+							<strong>Cảnh báo hiệu năng:</strong> Bật hiệu ứng nền có thể khiến máy tính chạy chậm hơn,
+							đặc biệt trên các thiết bị đời cũ.
 					</p>
 				</div>
 			</div>
@@ -271,10 +271,10 @@ async function handleFileSelect(event: Event) {
 	try {
 		const customImage = await addCustomBackgroundImage(file);
 		selectedBackgroundOption.value = customImage.name;
-		toast.success(`Added custom background: ${file.name}`);
+		toast.success(`Đã thêm hình nền tùy chỉnh: ${file.name}`);
 	} catch (error) {
 		console.error("Failed to add custom image:", error);
-		toast.error(error.message || "Failed to add custom background image");
+		toast.error(error.message || "Không thể thêm ảnh nền tùy chỉnh");
 	}
 
 	target.value = "";
@@ -283,10 +283,10 @@ async function handleFileSelect(event: Event) {
 async function handleDeleteCustomImage(imageId: string) {
 	try {
 		await removeCustomBackgroundImage(imageId);
-		toast.success("Custom background removed");
+		toast.success("Đã xóa hình nền tùy chỉnh");
 	} catch (error) {
 		console.error("Failed to remove custom image:", error);
-		toast.error("Failed to remove custom background");
+		toast.error("Không thể xóa hình nền tùy chỉnh");
 	}
 }
 

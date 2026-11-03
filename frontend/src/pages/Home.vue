@@ -70,7 +70,7 @@
 							:options="[
 								{
 									icon: 'lock',
-									label: 'Tạo cuộc họp giới hạn',
+									label: 'Tạo cuộc họp cần phê duyệt',
 									onClick: () => startNewMeeting('restricted'),
 								},
 							]"
@@ -114,15 +114,15 @@ const createMeeting = createResource({
 	},
 	onError: (error) => {
 		console.error("Error creating meeting:", error);
-		toast.error("Failed to create meeting. Please try again.");
+		toast.error("Không thể tạo cuộc họp. Vui lòng thử lại.");
 	},
 });
 
 const startNewMeeting = (meetingType) => {
 	toast.promise(createMeeting.submit({ meeting_type: meetingType }), {
-		loading: "Creating meeting...",
-		success: "Meeting created successfully!",
-		error: "Failed to create meeting. Please try again.",
+		loading: "Đang tạo cuộc họp...",
+		success: "Tạo cuộc họp thành công!",
+		error: "Không thể tạo cuộc họp. Vui lòng thử lại.",
 	});
 };
 

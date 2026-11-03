@@ -153,9 +153,9 @@ export function useBackgroundEffects(): UseBackgroundEffectsReturn {
 			return model;
 		} catch (err) {
 			console.error("Failed to load MediaPipe Selfie Segmentation model:", err);
-			error.value = "Failed to load background effects model";
+				error.value = "Không thể tải mô hình hiệu ứng nền";
 			toast.error(
-				"Failed to load the background effects model. Please try again.",
+				"Không thể tải mô hình hiệu ứng nền. Vui lòng thử lại.",
 			);
 			throw err;
 		}
@@ -242,7 +242,7 @@ export function useBackgroundEffects(): UseBackgroundEffectsReturn {
 				} catch (error) {
 					console.warn("WebGL initialization failed:", error);
 					toast.warning(
-						"WebGL is not available. Background blur effects will be disabled.",
+						"Thiết bị không hỗ trợ WebGL. Các hiệu ứng làm mờ nền sẽ bị tắt.",
 					);
 					webglManager = null;
 				}
@@ -416,7 +416,7 @@ export function useBackgroundEffects(): UseBackgroundEffectsReturn {
 								error.code === "WEBGL_UNAVAILABLE"
 							) {
 								toast.error(
-									"Background blur requires WebGL but it's not available on this device. Blur effects have been disabled.",
+							"Hiệu ứng làm mờ nền cần WebGL nhưng thiết bị này không hỗ trợ. Đã tắt các hiệu ứng làm mờ.",
 								);
 								settings.backgroundBlurEnabled = false;
 							} else if (
@@ -424,7 +424,7 @@ export function useBackgroundEffects(): UseBackgroundEffectsReturn {
 								error.code === "WEBGL_BLUR_FAILED"
 							) {
 								toast.error(
-									"Background blur failed due to WebGL error. Blur effects have been disabled.",
+							"Không thể làm mờ nền do lỗi WebGL. Đã tắt các hiệu ứng làm mờ.",
 								);
 								settings.backgroundBlurEnabled = false;
 							} else {
@@ -752,7 +752,7 @@ export function useBackgroundEffects(): UseBackgroundEffectsReturn {
 					} catch (error) {
 						console.error("Failed to update background image:", error);
 						toast.error(
-							"Failed to update the selected background image. Reverting to original.",
+							"Không thể cập nhật ảnh nền đã chọn. Đang quay lại video gốc.",
 						);
 						settings.backgroundImageEnabled = false;
 						settings.selectedBackgroundImage = null;
@@ -765,7 +765,7 @@ export function useBackgroundEffects(): UseBackgroundEffectsReturn {
 		} catch (err) {
 			console.error("Background effects processing error:", err);
 			error.value = err instanceof Error ? err.message : "Unknown error";
-			toast.error("Failed to apply background effects. Using original video.");
+		toast.error("Không thể áp dụng hiệu ứng nền. Đang sử dụng video gốc.");
 			await haltProcessing({ disposeWebGL: true });
 			await resetSegmentationState();
 			return {

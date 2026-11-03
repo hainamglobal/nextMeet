@@ -711,7 +711,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 				(error as Error).name === "PermissionDeniedError";
 			toast.warning(
 				isPermissionError
-					? "Media access denied. Enable permissions in browser settings."
+					? "Quyền truy cập thiết bị bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 					: "Media access failed. You can join without media.",
 			);
 		}
@@ -741,7 +741,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 							(err as Error).name === "PermissionDeniedError";
 						toast.error(
 							isPermissionError
-								? "Microphone access denied. Enable in browser settings."
+								? "Quyền truy cập micrô bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 								: "Failed to access microphone",
 						);
 						return;
@@ -763,7 +763,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 								(err as Error).name === "PermissionDeniedError";
 							toast.error(
 								isPermissionError
-									? "Microphone access denied. Enable in browser settings."
+									? "Quyền truy cập micrô bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 									: "Could not enable microphone",
 							);
 							return;
@@ -789,7 +789,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 									(err as Error).name === "PermissionDeniedError";
 								toast.error(
 									isPermissionError
-										? "Microphone access denied. Enable in browser settings."
+										? "Quyền truy cập micrô bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 										: "Could not enable microphone",
 								);
 								return;
@@ -873,7 +873,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 			}
 		} catch (error) {
 			console.error("Failed to toggle microphone:", error);
-			toast.error("Failed to toggle microphone");
+			toast.error("Không thể bật/tắt micrô");
 		}
 	};
 
@@ -903,7 +903,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 							(err as Error).name === "PermissionDeniedError";
 						toast.error(
 							isPermissionError
-								? "Camera access denied. Enable in browser settings."
+								? "Quyền truy cập camera bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 								: "Failed to access camera",
 						);
 						return;
@@ -933,7 +933,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 								(err as Error).name === "PermissionDeniedError";
 							toast.error(
 								isPermissionError
-									? "Camera access denied. Enable in browser settings."
+									? "Quyền truy cập camera bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 									: "Could not enable camera",
 							);
 							return;
@@ -967,7 +967,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 									(err as Error).name === "PermissionDeniedError";
 								toast.error(
 									isPermissionError
-										? "Camera access denied. Enable in browser settings."
+										? "Quyền truy cập camera bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
 										: "Could not enable camera",
 								);
 								return;
@@ -1056,7 +1056,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 			}
 		} catch (error) {
 			console.error("Failed to toggle camera:", error);
-			toast.error("Failed to toggle camera");
+			toast.error("Không thể bật/tắt camera");
 		}
 	};
 
@@ -1198,7 +1198,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 				console.log("User cancelled screen share");
 			} else {
 				console.error("Screen share failed:", error);
-				toast.error("Failed to start screen sharing");
+				toast.error("Không thể bắt đầu chia sẻ màn hình");
 			}
 		}
 	};
@@ -1331,7 +1331,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 	watch(noiseCancellation.error, (message) => {
 		if (message) {
 			toast.warning(
-				`Noise cancellation unavailable: ${message}. Falling back to raw microphone.`,
+				`Không thể khử tiếng ồn: ${message}. Đang dùng âm thanh micrô gốc.`,
 			);
 		}
 	});

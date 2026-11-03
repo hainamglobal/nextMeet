@@ -28,7 +28,7 @@
 									<span class="font-semibold text-white">
 										{{ request.user_name || request.user_id }}
 									</span>
-									wants to join the meeting
+									muốn tham gia cuộc họp
 								</p>
 							</div>
 						</div>
@@ -50,7 +50,7 @@
 							<template #prefix>
 								<lucide-check class="w-3 h-3 mr-1" />
 							</template>
-							Admit
+							Chấp nhận
 						</Button>
 						<Button
 							variant="outline"
@@ -62,7 +62,7 @@
 							<template #prefix>
 								<lucide-x class="w-3 h-3 mr-1" />
 							</template>
-							Deny
+							Từ chối
 						</Button>
 					</div>
 				</div>

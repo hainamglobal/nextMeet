@@ -55,22 +55,22 @@ export const customBackgroundImages: Ref<BackgroundImage[]> = ref([]);
 export const availableBackgroundImages: BackgroundImage[] = [
 	{
 		name: "beach",
-		label: "Beach",
+		label: "Bãi biển",
 		url: "/assets/meet/frontend/backgrounds/beach.webp",
 	},
 	{
 		name: "mountains",
-		label: "Mountains",
+		label: "Núi",
 		url: "/assets/meet/frontend/backgrounds/mountains.webp",
 	},
 	{
 		name: "space",
-		label: "Earth & Moon",
+		label: "Trái Đất và Mặt Trăng",
 		url: "/assets/meet/frontend/backgrounds/earth-and-moon.webp",
 	},
 	{
 		name: "saturn",
-		label: "Saturn",
+		label: "Sao Thổ",
 		url: "/assets/meet/frontend/backgrounds/saturn.webp",
 	},
 ];
@@ -79,19 +79,19 @@ export const availableBackgroundImages: BackgroundImage[] = [
 export const allBackgroundOptions = computed(() => [
 	{
 		name: "none",
-		label: "None",
+		label: "Không dùng",
 		url: null,
 		type: "none" as const,
 	},
 	{
 		name: "blur-low",
-		label: "Slight Blur",
+		label: "Làm mờ nhẹ",
 		url: null,
 		type: "blur" as const,
 	},
 	{
 		name: "blur-high",
-		label: "Blur",
+		label: "Làm mờ",
 		url: null,
 		type: "blur" as const,
 	},
@@ -99,7 +99,7 @@ export const allBackgroundOptions = computed(() => [
 	...customBackgroundImages.value,
 	{
 		name: "add-custom",
-		label: "Add Custom",
+		label: "Thêm ảnh tùy chỉnh",
 		url: null,
 		isAddButton: true,
 	},

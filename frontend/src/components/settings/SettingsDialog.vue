@@ -156,10 +156,10 @@ const tabs = computed(() => {
 		!props.isPreview
 	) {
 		allTabs.push({
-			label: "Meeting",
+			label: "Cuộc họp",
 			items: [
 				{
-					label: "Meeting Access",
+					label: "Quyền truy cập",
 					value: "meeting-access",
 					icon: h(LucideUser),
 					component: markRaw(MeetingAccessSettingsTab),
@@ -169,34 +169,34 @@ const tabs = computed(() => {
 	}
 
 	allTabs.push({
-		label: "General",
+		label: "Chung",
 		items: [
 			{
-				label: "Devices",
+				label: "Thiết bị",
 				value: "devices",
 				icon: h(LucideMonitorSmartphone),
 				component: markRaw(DeviceSettingsTab),
 			},
 			{
-				label: "Audio",
+				label: "Âm thanh",
 				value: "audio",
 				icon: h(LucideAudioLines),
 				component: markRaw(AudioSettingsTab),
 			},
 			{
-				label: "Background",
+				label: "Hình nền",
 				value: "background",
 				icon: h(LucideCamera),
 				component: markRaw(BackgroundSettingsTab),
 			},
 			{
-				label: "Notifications",
+				label: "Thông báo",
 				value: "notifications",
 				icon: h(LucideBell),
 				component: markRaw(NotificationSettingsTab),
 			},
 			{
-				label: "Layout",
+				label: "Bố cục",
 				value: "layout",
 				icon: h(LucideLayoutDashboard),
 				condition: () => !props.isPreview,

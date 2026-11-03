@@ -1,7 +1,7 @@
 <template>
 	<div v-if="lobbyUsers.length > 0" class="">
 		<div class="px-4 py-2 text-xs font-medium text-ink-gray-5 tracking-wide bg-surface-gray-1 flex items-center justify-between">
-			<span>Waiting to join</span>
+			<span>Đang chờ tham gia</span>
 			<Button
 				variant="ghost"
 				size="sm"

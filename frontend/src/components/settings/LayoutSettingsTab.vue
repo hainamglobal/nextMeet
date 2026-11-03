@@ -1,6 +1,6 @@
 <template>
 	<SettingsLayoutBase
-		:description="'Customize the meeting interface layout'"
+		:description="'Tùy chỉnh bố cục giao diện cuộc họp'"
 	>
 		<template #title>
 			Layout
@@ -9,8 +9,8 @@
 			<div class="space-y-6">
 				<Switch
 					class="w-full !px-0"
-					label="Auto-hide toolbar"
-					description="Automatically hide the toolbar after 10 seconds of inactivity"
+					label="Tự động ẩn thanh công cụ"
+					description="Tự động ẩn thanh công cụ sau 10 giây không hoạt động"
 					v-model="autoHideToolbarLocal"
 				/>
 			</div>

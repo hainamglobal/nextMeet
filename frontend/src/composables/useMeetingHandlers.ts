@@ -242,12 +242,12 @@ export function useMeetingHandlers(deps: MeetingHandlersDeps) {
 			});
 
 			if ((response as { meeting_id?: string })?.meeting_id) {
-				toast.success("User promoted to co-host");
+				toast.success("Đã chỉ định người dùng làm đồng chủ trì");
 				await deps.meetingDoc.reload();
 			}
 		} catch (error) {
 			console.error("Failed to promote participant:", error);
-			toast.error("Failed to promote user to co-host");
+			toast.error("Không thể chỉ định người dùng làm đồng chủ trì");
 		}
 	};
 

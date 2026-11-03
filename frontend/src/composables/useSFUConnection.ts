@@ -185,7 +185,7 @@ export function useSFUConnection(deps: {
 		);
 
 		toast.create({
-			message: `${participantName} joined the meeting`,
+			message: `${participantName} đã tham gia cuộc họp`,
 			icon: participant.avatar
 				? h("img", {
 						src: participant.avatar as string,
@@ -219,7 +219,7 @@ export function useSFUConnection(deps: {
 		);
 
 		toast.create({
-			message: `${participantName} left the meeting`,
+			message: `${participantName} đã rời cuộc họp`,
 			icon: participant?.avatar
 				? h("img", {
 						src: participant.avatar as string,
@@ -329,7 +329,7 @@ export function useSFUConnection(deps: {
 			},
 			onHostMutedYou: onHostMutedYou,
 			onHostKickedYou: (_data: unknown) => {
-				toast.error("You have been removed from the meeting by the host");
+				toast.error("Chủ trì đã xóa bạn khỏi cuộc họp");
 				onHostKickedYou();
 			},
 		};
@@ -493,7 +493,7 @@ export function useSFUConnection(deps: {
 					stopGuestApprovalListener();
 					lobbyStore.isWaitingForApproval = false;
 					lobbyStore.isJoinRequestRejected = true;
-					toast.error("Your join request was denied by the meeting host");
+					toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
 					return;
 				}
 
@@ -546,7 +546,7 @@ export function useSFUConnection(deps: {
 			lobbyStore.isJoinRequestRejected = true;
 			lobbyStore.isWaitingForApproval = false;
 
-			toast.error("Your join request was denied by the meeting host");
+			toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
 		}
 	};
 
@@ -611,12 +611,12 @@ export function useSFUConnection(deps: {
 				} else {
 					console.error("Failed to get SFU connection:", sfuResult);
 					lobbyStore.isJoinRequestRejected = true;
-					toast.error("Failed to join meeting after approval");
+					toast.error("Không thể tham gia cuộc họp sau khi được duyệt");
 				}
 			} catch (error) {
 				console.error("Error after approval:", error);
 				connectionState.connectionError = getErrorMessage(error);
-				toast.error("Failed to join meeting after approval");
+				toast.error("Không thể tham gia cuộc họp sau khi được duyệt");
 			} finally {
 				approvedJoinInProgress.value = false;
 			}
@@ -630,7 +630,7 @@ export function useSFUConnection(deps: {
 			lobbyStore.isJoinRequestRejected = true;
 			lobbyStore.isWaitingForApproval = false;
 
-			toast.error("Your join request was denied by the meeting host");
+			toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
 		}
 	};
 
@@ -661,7 +661,7 @@ export function useSFUConnection(deps: {
 			} else if (result.status === "rejected") {
 				lobbyStore.isWaitingForApproval = false;
 				lobbyStore.isJoinRequestRejected = true;
-				toast.error("Your join request was denied by the meeting host");
+				toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
 			}
 		} catch (error) {
 			console.error("Failed to sync meeting join status:", error);

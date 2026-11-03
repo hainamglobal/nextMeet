@@ -45,7 +45,7 @@
 		<div v-else-if="isConnecting" class="flex-1 flex items-center justify-center">
 			<div class="flex items-center justify-center text-white space-x-4">
 				<Spinner class="h-12" />
-				<p class="text-lg">Joining meeting...</p>
+				<p class="text-lg">Đang tham gia cuộc họp...</p>
 			</div>
 		</div>
 
@@ -56,7 +56,7 @@
 					<lucide-alert-circle class="w-12 h-12 mx-auto" />
 				</div>
 				<p class="text-lg mb-4">{{ connectionState.connectionError }}</p>
-				<Button @click="resetToPreview" variant="outline" theme="red">Try Again</Button>
+				<Button @click="resetToPreview" variant="outline" theme="red">Thử lại</Button>
 			</div>
 		</div>
 

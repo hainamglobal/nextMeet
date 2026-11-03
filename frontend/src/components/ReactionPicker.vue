@@ -20,7 +20,7 @@
 							type="button"
 							@click="handleReactionSelect(emoji)"
 							class="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-2xl"
-							:aria-label="`Send ${emoji} reaction`"
+							:aria-label="`Gửi biểu cảm ${emoji}`"
 							:data-testid="`reaction-${emoji}`"
 						>
 							{{ emoji }}

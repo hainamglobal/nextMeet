@@ -1,14 +1,14 @@
 <template>
-	<Dialog v-model="show" :options="{ title: 'Meeting Information' }">
+	<Dialog v-model="show" :options="{ title: 'Thông tin cuộc họp' }">
 		<template #body-content>
 			<div class="space-y-4">
 				<div class="space-y-2">
-					<label class="text-sm font-medium text-gray-700">Meeting ID</label>
+					<label class="text-sm font-medium text-gray-700">Mã cuộc họp</label>
 					<ClickToCopyField :textContent="meetingId" :breakLines="false" />
 				</div>
 
 				<div class="space-y-2">
-					<label class="text-sm font-medium text-gray-700">Meeting URL</label>
+					<label class="text-sm font-medium text-gray-700">Liên kết cuộc họp</label>
 					<ClickToCopyField :textContent="meetingUrl" :breakLines="false" />
 				</div>
 			</div>

@@ -1,5 +1,5 @@
 <template>
-	<SettingsLayoutBase :description="'Configure your audio and microphone settings'">
+	<SettingsLayoutBase :description="'Thiết lập âm thanh và micrô'">
 		<template #title>
 			Audio
 		</template>
@@ -7,14 +7,14 @@
 			<div class="space-y-6">
 				<Switch
 					class="w-full !px-0"
-					label="Noise Cancellation"
-					description="Reduce background noise from your microphone"
+					label="Khử tiếng ồn"
+					description="Giảm tiếng ồn xung quanh thu vào micrô"
 					v-model="noiseCancellationEnabledLocal"
 				/>
 				<Switch
 					class="w-full !px-0"
-					label="Push to Talk"
-					description="Hold spacebar to unmute your microphone"
+					label="Nhấn để nói"
+					description="Giữ phím cách để bật tiếng micrô"
 					v-model="pushToTalkEnabledLocal"
 				/>
 			</div>
