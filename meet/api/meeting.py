@@ -588,6 +588,22 @@ def _is_meeting_host(meeting: "SaeMeeting", user: str) -> bool:
 	return False
 
 
+def _is_meeting_creator(meeting: "SaeMeeting", actor_email: str | None) -> bool:
+	actor = (actor_email or "").strip().lower()
+	if not actor:
+		return False
+
+	creator_email = (meeting.created_by_email or "").strip().lower()
+	if creator_email:
+		return actor == creator_email
+
+	owner = (meeting.owner or "").strip()
+	if owner.lower() == actor:
+		return True
+	owner_email = (frappe.db.get_value("User", owner, "email") or "").strip().lower()
+	return bool(owner_email and owner_email == actor)
+
+
 @frappe.whitelist()
 def get_sfu_connection_details(meeting_id: str) -> dict:
 	"""
@@ -853,11 +869,15 @@ def refresh_sfu_token(meeting_id: str) -> dict:
 
 
 @frappe.whitelist()
-def get_sfu_presence_preview_token(meeting_id: str, expected_host_name: str | None = None) -> dict:
-	"""Get a short-lived SFU token scoped for presence preview only.
+def get_sfu_presence_preview_token(
+	meeting_id: str,
+	expected_host_name: str | None = None,
+	actor_email: str | None = None,
+) -> dict:
+	"""Get a short-lived presence token, with kick permission for the creator.
 
 	This is used by the meeting preview page to fetch live participants
-	from the SFU without granting any media capabilities.
+	from the SFU without granting media capabilities.
 	"""
 
 	try:
@@ -873,17 +893,21 @@ def get_sfu_presence_preview_token(meeting_id: str, expected_host_name: str | No
 	if not meeting.can_join(frappe.session.user):
 		frappe.throw(_("Access denied"), frappe.PermissionError)
 
+	is_creator = _is_meeting_creator(meeting, actor_email)
+
 	sfu_config = get_sfu_config()
 
 	expiry_seconds = 300
 	session_id = str(secrets.token_urlsafe(16))
+	token_user_id = actor_email.strip() if is_creator and actor_email else frappe.session.user
 
 	auth_token = _generate_sfu_token(
-		user_id=frappe.session.user,
+		user_id=token_user_id,
 		meeting_id=meeting_id,
 		scope="presence-preview",
 		expires_in=expiry_seconds,
 		session_id=session_id,
+		is_host=is_creator,
 	)
 
 	return {
@@ -891,6 +915,8 @@ def get_sfu_presence_preview_token(meeting_id: str, expected_host_name: str | No
 		"sfu_port": sfu_config.get("sfu_server_port"),
 		"auth_token": auth_token,
 		"expires_in": expiry_seconds,
+		"user_id": token_user_id,
+		"is_creator": is_creator,
 	}
 
 

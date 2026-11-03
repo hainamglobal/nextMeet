@@ -16,6 +16,7 @@ from meet.api.meeting import (
 	get_approved_guest_connection_details,
 	get_join_status,
 	get_sfu_connection_details,
+	get_sfu_presence_preview_token,
 	delete_mtp_meeting,
 	invite_meeting_user,
 	get_my_meeting_invitations,
@@ -76,6 +77,42 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertEqual(result["user_id"], self.member_email)
 		self.assertEqual(result["meeting_id"], self.meeting.name)
 		self.assertTrue(result["auth_token"])
+
+	@patch(
+		"meet.api.meeting.get_sfu_config",
+		return_value={
+			"sfu_secret": "test-sfu-secret",
+			"sfu_server_url": "https://meet.example.com",
+			"sfu_server_port": 3000,
+		},
+	)
+	def test_presence_preview_token_grants_kick_permission_only_to_creator(self, _get_sfu_config):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.add_user_to_table("members", self.member_email, save=True, ignore_permissions=True)
+		self.meeting.save(ignore_permissions=True)
+
+		frappe.set_user(self.host_email)
+		creator_result = get_sfu_presence_preview_token(
+			self.meeting.name,
+			expected_host_name=frappe.local.site,
+			actor_email=self.host_email,
+		)
+		creator_payload = jwt.decode(creator_result["auth_token"], "test-sfu-secret", algorithms=["HS256"])
+		self.assertTrue(creator_result["is_creator"])
+		self.assertEqual(creator_result["user_id"], self.host_email)
+		self.assertTrue(creator_payload["is_host"])
+		self.assertEqual(creator_payload["scope"], "presence-preview")
+
+		frappe.set_user(self.member_email)
+		member_result = get_sfu_presence_preview_token(
+			self.meeting.name,
+			expected_host_name=frappe.local.site,
+			actor_email=self.member_email,
+		)
+		member_payload = jwt.decode(member_result["auth_token"], "test-sfu-secret", algorithms=["HS256"])
+		self.assertFalse(member_result["is_creator"])
+		self.assertFalse(member_payload["is_host"])
 
 	def test_restricted_meeting_non_member_cannot_get_sfu_connection_details(self):
 		frappe.set_user(self.outsider_email)

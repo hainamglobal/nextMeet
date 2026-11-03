@@ -57,6 +57,7 @@
 							:isCurrentUser="participant.isCurrentUser"
 							:isHost="participant.isHost"
 							:canControlParticipant="participant.canControlParticipant"
+							:canKickParticipant="participant.canKickParticipant"
 							@muteParticipant="handleMuteParticipant"
 							@kickParticipant="handleKickParticipant"
 							@lowerHand="handleLowerHand"
@@ -234,6 +235,7 @@ const allVisibleParticipants = computed(() => {
 			isCurrentUser: true,
 			isHost: isCreator.value,
 			canControlParticipant: false,
+			canKickParticipant: false,
 			canPromoteToCohost: false,
 		});
 	}
@@ -250,6 +252,8 @@ const allVisibleParticipants = computed(() => {
 				props.coHosts.includes(participant.user_id),
 			canControlParticipant:
 				isCreator.value && participant.user_id !== props.creatorUserId,
+			canKickParticipant:
+				isHost.value && participant.user_id !== props.creatorUserId,
 			canPromoteToCohost:
 				isHost.value &&
 				!participant.is_guest &&

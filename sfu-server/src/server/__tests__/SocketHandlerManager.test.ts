@@ -248,6 +248,96 @@ describe('SocketHandlerManager characterization', () => {
 		).toBe(false);
 	});
 
+	it('host_control only allows the meeting creator to kick participants', async () => {
+		const harness = createManager();
+		const cohost = connectFullSocket(harness, {
+			id: 'sock-cohost-kick',
+			userId: 'cohost-1',
+			userName: 'Co-host',
+			isHost: false,
+			isCohost: true,
+		});
+		emitJoin(cohost, { userId: 'cohost-1', name: 'Co-host' });
+		await new Promise((r) => setImmediate(r));
+
+		const target = connectFullSocket(harness, {
+			id: 'sock-target-kick',
+			userId: 'target-kick-1',
+			userName: 'Target',
+		});
+		emitJoin(target, { userId: 'target-kick-1', name: 'Target' });
+		await new Promise((r) => setImmediate(r));
+		harness.io.socketsAdapterRooms.set(
+			'room-1',
+			new Set([cohost.id, target.id]),
+		);
+
+		cohost.emitCalls.length = 0;
+		target.emitCalls.length = 0;
+		cohost.fire('host_control', {
+			action: 'kick_participant',
+			targetParticipantId: 'target-kick-1',
+		});
+		await new Promise((r) => setImmediate(r));
+
+		expect(cohost.emitCalls).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					event: 'sfu_error',
+					data: expect.objectContaining({
+						error: 'Only the meeting creator can remove participants',
+					}),
+				}),
+			]),
+		);
+		expect(
+			target.emitCalls.some((call) => call.event === 'host_control_update'),
+		).toBe(false);
+	});
+
+	it('a creator presence-preview socket can kick without joining as a media peer', async () => {
+		const harness = createManager();
+		const creator = connectFullSocket(harness, {
+			id: 'sock-creator-preview',
+			userId: 'creator@example.com',
+			userName: 'Creator',
+			isHost: true,
+			isCohost: false,
+			scope: 'presence-preview',
+		});
+		emitJoin(creator, { userId: 'creator@example.com', name: 'Preview' });
+		await new Promise((r) => setImmediate(r));
+
+		const target = connectFullSocket(harness, {
+			id: 'sock-preview-target',
+			userId: 'target-preview-1',
+			userName: 'Target',
+		});
+		emitJoin(target, { userId: 'target-preview-1', name: 'Target' });
+		await new Promise((r) => setImmediate(r));
+		harness.io.socketsAdapterRooms.set(
+			'room-1',
+			new Set([creator.id, target.id]),
+		);
+
+		creator.emitCalls.length = 0;
+		target.emitCalls.length = 0;
+		creator.fire('host_control', {
+			action: 'kick_participant',
+			targetParticipantId: 'target-preview-1',
+		});
+		await new Promise((r) => setImmediate(r));
+
+		expect(
+			target.emitCalls.some(
+				(call) =>
+					call.event === 'host_control_update' &&
+					(call.data as { action?: string })?.action === 'kick_participant',
+			),
+		).toBe(true);
+		expect(harness.mediasoup.addPeer).toHaveBeenCalledTimes(1);
+	});
+
 	it('chat:send broadcasts to other full-access participants in the same room and not back to the sender', async () => {
 		const harness = createManager();
 

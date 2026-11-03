@@ -78,6 +78,7 @@
 
 	<!-- Kick Confirmation Dialog -->
 	<KickParticipantDialog
+		v-if="canKickParticipant"
 		v-model="showKickDialog"
 		:participant-name="participant.user_name || 'this participant'"
 		@confirm="handleKickConfirm"
@@ -98,6 +99,7 @@ interface Props {
 	isCurrentUser?: boolean;
 	isHost?: boolean;
 	canControlParticipant?: boolean;
+	canKickParticipant?: boolean;
 	canPromoteToCohost?: boolean;
 }
 
@@ -105,6 +107,7 @@ const props = withDefaults(defineProps<Props>(), {
 	isCurrentUser: false,
 	isHost: false,
 	canControlParticipant: false,
+	canKickParticipant: false,
 	canPromoteToCohost: false,
 });
 
@@ -160,6 +163,7 @@ const hostOptions = computed(() => {
 		{
 			icon: "user-x",
 			label: "Xóa khỏi cuộc họp",
+			condition: () => props.canKickParticipant,
 			onClick: () => {
 				showKickDialog.value = true;
 			},

@@ -7,8 +7,14 @@ export function registerHostControlHandlers(deps: HandlerDeps) {
 	return (socket: Socket) => {
 		socket.on('host_control', async (data) => {
 			try {
-				deps.authManager.ensureFullAccess(socket);
 				const { action, targetParticipantId } = data;
+				const isCreatorPreviewKick =
+					socket.scope === 'presence-preview' &&
+					socket.isHost &&
+					action === 'kick_participant';
+				if (!isCreatorPreviewKick) {
+					deps.authManager.ensureFullAccess(socket);
+				}
 				const roomId = socket.roomId;
 
 				if (!roomId || !socket.participantId) {
@@ -29,6 +35,14 @@ export function registerHostControlHandlers(deps: HandlerDeps) {
 						socket.participantId,
 						roomId,
 					);
+					return;
+				}
+
+				if (action === 'kick_participant' && targetParticipantId === socket.participantId) {
+					socket.emit('sfu_error', {
+						error: 'You cannot remove yourself from the meeting',
+						timestamp: new Date().toISOString(),
+					});
 					return;
 				}
 
@@ -70,6 +84,20 @@ export function registerHostControlHandlers(deps: HandlerDeps) {
 						);
 						break;
 					case 'kick_participant':
+						if (!socket.isHost) {
+							socket.emit('sfu_error', {
+								error: 'Only the meeting creator can remove participants',
+								timestamp: new Date().toISOString(),
+							});
+							loggers.socketHandler.warn(
+								'Co-host %s attempted to remove participant %s from room %s',
+								socket.participantId,
+								targetParticipantId,
+								roomId,
+							);
+							return;
+						}
+
 						targetSocket.emit('host_control_update', {
 							action,
 							targetParticipantId,
