@@ -140,7 +140,6 @@ def _get_mtp_managed_meeting(meeting_id: str, expected_host_name: str | None, ac
 	if meeting.is_deleted:
 		frappe.throw(_("Meeting is no longer available"), frappe.DoesNotExistError)
 	is_creator = bool(actor_email and (meeting.created_by_email or "").strip().lower() == actor_email.strip().lower())
-	actor_user = frappe.db.get_value("User", {"email": (actor_email or "").strip().lower()}, "name")
 	is_admin = False
 	if actor_email:
 		user_name = frappe.db.get_value("User", {"email": actor_email.strip().lower()}, "name") or actor_email
@@ -150,7 +149,7 @@ def _get_mtp_managed_meeting(meeting_id: str, expected_host_name: str | None, ac
 	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
 		is_admin = True
 	is_co_host = allow_co_host and any(
-		row.user == actor_user or (row.user or "").strip().lower() == (actor_email or "").strip().lower()
+		(row.user or "").strip().lower() == (actor_email or "").strip().lower()
 		for row in meeting.co_hosts or []
 	)
 	if not is_creator and not is_admin and not is_co_host:
@@ -169,7 +168,6 @@ def can_invite_meeting_users(
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
 	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
 	is_creator = bool(actor_email and (meeting.created_by_email or "").strip().lower() == actor_email.strip().lower())
-	actor_user = frappe.db.get_value("User", {"email": (actor_email or "").strip().lower()}, "name")
 	is_admin = False
 	if actor_email:
 		user_name = frappe.db.get_value("User", {"email": actor_email.strip().lower()}, "name") or actor_email
@@ -179,7 +177,7 @@ def can_invite_meeting_users(
 	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
 		is_admin = True
 	is_co_host = any(
-		row.user == actor_user or (row.user or "").strip().lower() == (actor_email or "").strip().lower()
+		(row.user or "").strip().lower() == (actor_email or "").strip().lower()
 		for row in meeting.co_hosts or []
 	)
 	return bool(
@@ -204,13 +202,10 @@ def set_meeting_co_hosts(meeting_id: str, co_host_emails: str, actor_email: str,
 		frappe.throw(_("Co-hosts must be unique and cannot include the meeting host"), frappe.ValidationError)
 	meeting.set("co_hosts", [])
 	for email in clean_emails:
-		user = frappe.db.get_value("User", {"email": email, "enabled": 1}, ["name", "full_name"], as_dict=True)
-		if not user:
-			frappe.throw(_("Co-host must be an active user"), frappe.ValidationError)
-		meeting.append("co_hosts", {"user": user.name, "user_name": user.full_name or email})
+		meeting.append("co_hosts", {"user": email, "user_name": email})
 	meeting.save(ignore_permissions=True)
 	return [
-		{"user": frappe.db.get_value("User", row.user, "email") or row.user, "user_name": row.user_name}
+		{"user": row.user, "user_name": row.user_name}
 		for row in meeting.co_hosts
 	]
 
@@ -222,7 +217,7 @@ def update_meeting_title(
 	actor_email: str,
 	expected_host_name: str | None = None,
 ) -> dict:
-	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email, allow_co_host=False)
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
 	title = (meeting_title or "").strip()
 	if not title:
 		frappe.throw(_("Meeting title is required"), frappe.ValidationError)
@@ -504,17 +499,15 @@ def get_user_meeting(
 	if (meeting.host_name or "").strip().lower().rstrip(".") != host_name or meeting.is_deleted:
 		frappe.throw(_("Meeting is not available"), frappe.PermissionError)
 	is_creator = (meeting.created_by_email or "").strip().lower() == actor_email
-	actor_user = frappe.db.get_value("User", {"email": actor_email}, "name")
-	is_co_host = bool(actor_user and actor_user in meeting.get_co_hosts())
+	is_co_host = any(
+		(row.user or "").strip().lower() == actor_email for row in meeting.co_hosts or []
+	)
 	is_participant = meeting_id in _get_user_joined_meeting_ids(actor_email, host_name)
 	if not actor_email or not (is_creator or is_co_host or is_participant):
 		frappe.throw(_("You cannot view this meeting"), frappe.PermissionError)
 	result = meeting.as_dict()
 	for row in result.get("co_hosts", []):
-		row["user"] = frappe.db.get_value("User", row.get("user"), "email") or row.get("user")
-	return result
-	for row in result.get("co_hosts", []):
-		row["user"] = frappe.db.get_value("User", row.get("user"), "email") or row.get("user")
+		row["user"] = (row.get("user") or "").strip().lower()
 	return result
 
 
@@ -938,8 +931,10 @@ def get_sfu_presence_preview_token(
 		frappe.throw(_("Access denied"), frappe.PermissionError)
 
 	is_creator = _is_meeting_creator(meeting, actor_email)
-	actor_user = frappe.db.get_value("User", {"email": (actor_email or "").strip().lower()}, "name")
-	is_co_host = bool(actor_user and actor_user in meeting.get_co_hosts())
+	actor_email_clean = (actor_email or "").strip().lower()
+	is_co_host = any(
+		(row.user or "").strip().lower() == actor_email_clean for row in meeting.co_hosts or []
+	)
 	can_manage_participants = is_creator or is_co_host
 
 	sfu_config = get_sfu_config()

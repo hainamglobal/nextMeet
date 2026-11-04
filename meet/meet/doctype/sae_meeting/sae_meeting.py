@@ -490,9 +490,18 @@ class SaeMeeting(Document):
 				return True
 
 		# 6. Co-hosts list
-		co_hosts = [row.user for row in self.get("co_hosts") or []]
-		if user in co_hosts or user_clean in [c.lower() for c in co_hosts]:
+		co_hosts = [(row.user or "").strip().lower() for row in self.get("co_hosts") or []]
+		if user_clean in co_hosts:
 			return True
+		if user.startswith("guest_"):
+			session_data = get_guest_session(user)
+			guest_email = (session_data.get("user_email") or "").strip().lower() if session_data else ""
+			if guest_email and guest_email in co_hosts:
+				return True
+		elif frappe.db.exists("User", user):
+			user_email = (frappe.db.get_value("User", user, "email") or "").strip().lower()
+			if user_email and user_email in co_hosts:
+				return True
 
 		return False
 

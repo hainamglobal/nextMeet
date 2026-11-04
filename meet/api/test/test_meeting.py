@@ -24,6 +24,7 @@ from meet.api.meeting import (
 	get_user_meetings,
 	respond_meeting_invitation,
 	_has_accepted_invitation,
+	set_meeting_co_hosts,
 )
 
 
@@ -127,6 +128,23 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 
 		with self.assertRaises(frappe.PermissionError):
 			delete_mtp_meeting(self.meeting.name, actor_email=self.member_email, expected_host_name=frappe.local.site)
+
+	def test_mtp_cohost_can_be_saved_without_a_meet_user_account(self):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.save(ignore_permissions=True)
+		mtp_only_email = "mtp-only-cohost@example.com"
+
+		frappe.set_user(self.host_email)
+		result = set_meeting_co_hosts(
+			self.meeting.name,
+			frappe.as_json([mtp_only_email]),
+			actor_email=self.host_email,
+			expected_host_name=frappe.local.site,
+		)
+
+		self.assertEqual(result, [{"user": mtp_only_email, "user_name": mtp_only_email}])
+		self.assertTrue(self.meeting.reload().is_host_or_cohost(mtp_only_email))
 
 		self.assertFalse(self.meeting.reload().is_deleted)
 
