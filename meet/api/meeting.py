@@ -310,8 +310,13 @@ def add_meeting_co_host(
 	name = (co_host_name or email).strip()[:140]
 	if not email or "@" not in email:
 		frappe.throw(_("A valid co-host email is required"), frappe.ValidationError)
-	if email == (meeting.created_by_email or "").strip().lower():
-		frappe.throw(_("The meeting host is already a co-host"), frappe.ValidationError)
+	if _is_meeting_creator(meeting, email):
+		return {
+			"user": email,
+			"user_name": meeting.created_by_name or email,
+			"already_added": True,
+			"already_host": True,
+		}
 	row = next(
 		(row for row in meeting.co_hosts or [] if (row.user or "").strip().lower() == email),
 		None,

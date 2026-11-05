@@ -165,6 +165,14 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.meeting.created_by_email = self.host_email
 		self.meeting.save(ignore_permissions=True)
 		frappe.set_user(self.host_email)
+		host_result = add_meeting_co_host(
+			self.meeting.name,
+			self.host_email,
+			"Meeting Host",
+			actor_email=self.host_email,
+			expected_host_name=frappe.local.site,
+		)
+		self.assertTrue(host_result["already_host"])
 
 		result = add_meeting_co_host(
 			self.meeting.name,
