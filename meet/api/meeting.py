@@ -234,10 +234,20 @@ def delete_mtp_meeting(
 	actor_email: str,
 	expected_host_name: str | None = None,
 ) -> dict:
-	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email, allow_co_host=False)
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Authentication is required"), frappe.AuthenticationError)
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	if (meeting.host_name or "").strip().lower().rstrip(".") != host_name or meeting.is_deleted:
+		frappe.throw(_("Meeting is not available"), frappe.PermissionError)
+	actor = (actor_email or "").strip().lower()
+	is_creator = _is_meeting_creator(meeting, actor)
+	is_co_host = any((row.user or "").strip().lower() == actor for row in meeting.co_hosts or [])
+	if not actor or not (is_creator or is_co_host):
+		frappe.throw(_("Only the meeting host or a co-host can delete this meeting"), frappe.PermissionError)
 	if not meeting.is_deleted:
 		meeting.is_deleted = 1
-		meeting.deleted_by = actor_email.strip().lower()
+		meeting.deleted_by = actor
 		meeting.deleted_on = now_datetime()
 		meeting.save(ignore_permissions=True)
 	return {"deleted": True, "name": meeting_id}
@@ -285,6 +295,32 @@ def invite_meeting_user(
 		"meeting_title": meeting.meeting_title,
 		"status": invitation.status,
 	}
+
+
+@frappe.whitelist()
+def add_meeting_co_host(
+	meeting_id: str,
+	co_host_email: str,
+	co_host_name: str,
+	actor_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	email = (co_host_email or "").strip().lower()
+	name = (co_host_name or email).strip()[:140]
+	if not email or "@" not in email:
+		frappe.throw(_("A valid co-host email is required"), frappe.ValidationError)
+	if email == (meeting.created_by_email or "").strip().lower():
+		frappe.throw(_("The meeting host is already a co-host"), frappe.ValidationError)
+	row = next(
+		(row for row in meeting.co_hosts or [] if (row.user or "").strip().lower() == email),
+		None,
+	)
+	if row:
+		return {"user": email, "user_name": row.user_name or name, "already_added": True}
+	meeting.append("co_hosts", {"user": email, "user_name": name})
+	meeting.save(ignore_permissions=True)
+	return {"user": email, "user_name": name, "already_added": False}
 
 
 @frappe.whitelist()
@@ -402,8 +438,25 @@ def get_user_meetings(
 	)
 
 	joined_ids = _get_user_joined_meeting_ids(actor_email, host_name)
+	actor_users = {actor_email}
+	user_name = frappe.db.get_value("User", {"email": actor_email}, "name")
+	if user_name:
+		actor_users.add(user_name)
+	co_host_ids = {
+		row.parent
+		for row in frappe.get_all(
+			"Sae Meeting User",
+			filters={
+				"user": ["in", list(actor_users)],
+				"parenttype": "Sae Meeting",
+				"parentfield": "co_hosts",
+			},
+			fields=["parent"],
+		)
+		if row.parent
+	}
 
-	meeting_ids = created_ids | joined_ids
+	meeting_ids = created_ids | joined_ids | co_host_ids
 	if not meeting_ids:
 		return []
 
@@ -479,6 +532,7 @@ def get_user_meetings(
 	for meeting in meetings:
 		meeting.is_created_by_me = meeting.name in created_ids
 		meeting.is_participant = meeting.name in joined_ids and meeting.name not in created_ids
+		meeting.is_co_host = meeting.name in co_host_ids and meeting.name not in created_ids
 		meeting.has_started = meeting.name in started_ids
 	return meetings
 

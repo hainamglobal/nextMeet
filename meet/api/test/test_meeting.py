@@ -22,6 +22,7 @@ from meet.api.meeting import (
 	get_my_meeting_invitations,
 	get_user_meeting,
 	get_user_meetings,
+	add_meeting_co_host,
 	respond_meeting_invitation,
 	_has_accepted_invitation,
 	set_meeting_co_hosts,
@@ -158,6 +159,58 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertTrue(frappe.db.exists("Sae Meeting", self.meeting.name))
 		self.assertTrue(self.meeting.reload().is_deleted)
 		self.assertFalse(self.meeting.can_join(self.host_email))
+
+	def test_add_meeting_cohost_is_separate_from_participant_invitation(self):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.save(ignore_permissions=True)
+		frappe.set_user(self.host_email)
+
+		result = add_meeting_co_host(
+			self.meeting.name,
+			self.member_email,
+			"Meeting Member",
+			actor_email=self.host_email,
+			expected_host_name=frappe.local.site,
+		)
+
+		self.assertEqual(result["user"], self.member_email)
+		self.assertEqual(len(self.meeting.reload().invitations), 0)
+		member_meetings = get_user_meetings(
+			actor_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		cohost_meeting = next(row for row in member_meetings if row.name == self.meeting.name)
+		self.assertTrue(cohost_meeting.is_co_host)
+
+	def test_meeting_cohost_can_delete_but_non_cohost_cannot(self):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.save(ignore_permissions=True)
+		frappe.set_user(self.host_email)
+		add_meeting_co_host(
+			self.meeting.name,
+			self.member_email,
+			"Meeting Member",
+			actor_email=self.host_email,
+			expected_host_name=frappe.local.site,
+		)
+
+		frappe.set_user(self.outsider_email)
+		with self.assertRaises(frappe.PermissionError):
+			delete_mtp_meeting(
+				self.meeting.name,
+				actor_email=self.outsider_email,
+				expected_host_name=frappe.local.site,
+			)
+
+		frappe.set_user(self.member_email)
+		result = delete_mtp_meeting(
+			self.meeting.name,
+			actor_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		self.assertTrue(result["deleted"])
 
 	def test_meeting_invitation_is_recorded_and_response_is_saved(self):
 		self.meeting.host_name = frappe.local.site
