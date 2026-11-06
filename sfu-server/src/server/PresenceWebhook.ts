@@ -24,6 +24,7 @@ export async function publishPresence(
 	}
 
 	const count = mediasoup.getRoomParticipants(roomId).length;
+	const eventAt = Date.now();
 	const callbackTarget = (() => {
 		try {
 			const url = new URL(callbackUrl);
@@ -39,6 +40,7 @@ export async function publishPresence(
 			host_name: hostName,
 			meeting_id: meetingId,
 			count,
+			event_at: eventAt,
 		},
 		jwtSecret,
 		{ expiresIn: 30 },

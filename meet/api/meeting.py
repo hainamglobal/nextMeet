@@ -5,7 +5,8 @@ import secrets
 import time
 import hashlib
 import hmac
-from datetime import timedelta
+import math
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import frappe
@@ -477,6 +478,9 @@ def get_user_meetings(
 			"meeting_title",
 			"meeting_type",
 			"allow_guest",
+			"active_meeting_started_at",
+			"last_meeting_started_at",
+			"last_meeting_duration_seconds",
 			"owner",
 			"created_by_name",
 			"created_by_email",
@@ -497,6 +501,15 @@ def get_user_meetings(
 		)
 		if row.meeting and row.user_id
 	}
+	last_meeting_times = {}
+	for row in frappe.get_all(
+		"User Domain",
+		filters={"meeting": ["in", list(meeting_by_id)], "host_name": host_name},
+		fields=["meeting", "joined_at"],
+		order_by="joined_at desc",
+	):
+		if row.meeting and row.joined_at and row.meeting not in last_meeting_times:
+			last_meeting_times[row.meeting] = row.joined_at
 	member_rows = frappe.get_all(
 		"Sae Meeting User",
 		filters={
@@ -539,6 +552,18 @@ def get_user_meetings(
 		meeting.is_participant = meeting.name in joined_ids and meeting.name not in created_ids
 		meeting.is_co_host = meeting.name in co_host_ids and meeting.name not in created_ids
 		meeting.has_started = meeting.name in started_ids
+		meeting.last_meeting_at = meeting.last_meeting_started_at or last_meeting_times.get(meeting.name)
+		duration_seconds = meeting.last_meeting_duration_seconds
+		duration_available = bool(meeting.last_meeting_started_at and duration_seconds is not None)
+		if meeting.active_meeting_started_at:
+			duration_seconds = max(
+				0,
+				int((now_datetime() - get_datetime(meeting.active_meeting_started_at)).total_seconds()),
+			)
+			duration_available = True
+		meeting.last_meeting_duration_minutes = (
+			math.ceil(duration_seconds / 60) if duration_available else None
+		)
 	return meetings
 
 
@@ -1149,6 +1174,13 @@ def sfu_presence_event():
 	if not frappe.db.exists("Sae Meeting", {"name": meeting_id, "host_name": host_name}):
 		frappe.throw(_("Meeting does not belong to this site"), frappe.PermissionError)
 
+	meeting = frappe.get_doc("Sae Meeting", meeting_id)
+	event_at = claims.get("event_at")
+	if not isinstance(event_at, int) or event_at <= 0:
+		event_at = int(time.time() * 1000)
+	if _update_meeting_session_presence(meeting, count, event_at):
+		meeting.save(ignore_permissions=True)
+
 	callback = frappe.db.get_value(
 		"Meet Domain", host_name, ["callback_url", "callback_secret"], as_dict=True
 	)
@@ -1178,6 +1210,28 @@ def sfu_presence_event():
 		count,
 	)
 	return {"relayed": True}
+
+
+def _update_meeting_session_presence(meeting, count: int, event_at: int) -> bool:
+	"""Apply an ordered SFU presence snapshot to the meeting's latest session."""
+	event_time = datetime.fromtimestamp(event_at / 1000)
+	previous_event_time = meeting.get("last_presence_event_at")
+	if previous_event_time and event_time <= get_datetime(previous_event_time):
+		return False
+
+	meeting.last_presence_event_at = event_time
+	active_started_at = meeting.get("active_meeting_started_at")
+	if count > 0 and not active_started_at:
+		meeting.active_meeting_started_at = event_time
+		meeting.last_meeting_started_at = event_time
+	elif count == 0 and active_started_at:
+		started_at = get_datetime(active_started_at)
+		meeting.last_meeting_ended_at = event_time
+		meeting.last_meeting_duration_seconds = max(
+			0, int((event_time - started_at).total_seconds())
+		)
+		meeting.active_meeting_started_at = None
+	return True
 
 
 def _relay_presence_callback(callback_url, payload, signature):

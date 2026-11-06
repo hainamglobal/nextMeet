@@ -41,6 +41,11 @@ class SaeMeeting(Document):
 		meeting_type: DF.Literal["open", "restricted"]
 		members: DF.Table[SaeMeetingUser]
 		waiting_room: DF.Table[SaeMeetingUser]
+		active_meeting_started_at: DF.Datetime | None
+		last_meeting_started_at: DF.Datetime | None
+		last_meeting_ended_at: DF.Datetime | None
+		last_meeting_duration_seconds: DF.Int
+		last_presence_event_at: DF.Datetime | None
 	# end: auto-generated types
 
 	def autoname(self):

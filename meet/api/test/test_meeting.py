@@ -1,6 +1,7 @@
 # Copyright (c) 2026, Frappe and contributors
 # For license information, please see license.txt
 
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 import frappe
@@ -11,6 +12,7 @@ from frappe.utils import add_to_date, now_datetime
 
 from meet.api.integration import record_meeting_guest
 from meet.api.meeting import (
+	_update_meeting_session_presence,
 	_relay_presence_callback,
 	_resolve_meeting_host_name,
 	get_approved_guest_connection_details,
@@ -289,6 +291,18 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 				"user_id": "guest_member_session",
 			}
 		).insert(ignore_permissions=True)
+		latest_join = add_to_date(now_datetime(), minutes=1)
+		frappe.get_doc(
+			{
+				"doctype": "User Domain",
+				"meeting": joined.name,
+				"host_name": host_name,
+				"user_email": self.member_email,
+				"user_name": "Member",
+				"user_id": "guest_member_session",
+				"joined_at": latest_join,
+			}
+		).insert(ignore_permissions=True)
 
 		member_only = self._create_meeting(self.host_email)
 		member_only.host_name = host_name
@@ -331,6 +345,7 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertFalse(meetings[joined.name].is_created_by_me)
 		self.assertTrue(meetings[joined.name].is_participant)
 		self.assertTrue(meetings[joined.name].has_started)
+		self.assertEqual(meetings[joined.name].last_meeting_at, latest_join)
 		self.assertTrue(meetings[member_only.name].is_participant)
 		self.assertTrue(meetings[member_only.name].has_started)
 
@@ -488,6 +503,29 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertTrue(result)
 		self.assertEqual(post.call_count, 2)
 		sleep.assert_called_once_with(0.25)
+
+	def test_presence_snapshots_record_latest_meeting_duration_and_ignore_stale_events(self):
+		meeting = frappe.get_doc("Sae Meeting", self.meeting.name)
+		started_at = now_datetime()
+		ended_at = started_at + timedelta(minutes=8)
+
+		self.assertTrue(
+			_update_meeting_session_presence(meeting, 1, int(started_at.timestamp() * 1000))
+		)
+		self.assertTrue(
+			_update_meeting_session_presence(meeting, 0, int(ended_at.timestamp() * 1000))
+		)
+
+		self.assertEqual(meeting.last_meeting_duration_seconds, 480)
+		self.assertIsNone(meeting.active_meeting_started_at)
+		self.assertFalse(
+			_update_meeting_session_presence(
+				meeting,
+				1,
+				int((started_at + timedelta(minutes=1)).timestamp() * 1000),
+			)
+		)
+		self.assertIsNone(meeting.active_meeting_started_at)
 
 	def test_sfu_token_site_claim_keeps_cross_site_meetings_isolated(self):
 		"""Two sites with meetings of the same name must mint tokens that

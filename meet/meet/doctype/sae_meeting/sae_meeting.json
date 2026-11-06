@@ -13,6 +13,11 @@
   "meeting_type",
   "allow_guest",
   "host_only_chat",
+  "active_meeting_started_at",
+  "last_meeting_started_at",
+  "last_meeting_ended_at",
+  "last_meeting_duration_seconds",
+  "last_presence_event_at",
   "is_deleted",
   "deleted_by",
   "deleted_on",
@@ -74,6 +79,36 @@
     "fieldname":"host_only_chat",
     "fieldtype":"Check",
     "label": "Host Only Chat"
+  },
+  {
+   "fieldname": "active_meeting_started_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Active Meeting Started At"
+  },
+  {
+   "fieldname": "last_meeting_started_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Last Meeting Started At"
+  },
+  {
+   "fieldname": "last_meeting_ended_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Last Meeting Ended At"
+  },
+  {
+   "fieldname": "last_meeting_duration_seconds",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Last Meeting Duration Seconds"
+  },
+  {
+   "fieldname": "last_presence_event_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Last Presence Event At"
   },
   {
    "default": "0",
