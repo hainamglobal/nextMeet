@@ -23,7 +23,7 @@
 					{{ participant.user_name }}
 				</span>
 				<span v-if="isCurrentUser" class="text-xs text-ink-gray-5">(Bạn)</span>
-				<Badge v-if="isHost" theme="gray" size="sm">Chủ trì</Badge>
+				<Badge v-if="isHost" theme="gray" size="sm">Chủ phòng</Badge>
 				<Badge v-if="participant.is_guest" theme="gray" size="sm">Khách</Badge>
 			</div>
 		</div>
@@ -156,7 +156,7 @@ const hostOptions = computed(() => {
 		},
 		{
 			icon: "user-plus",
-			label: "Chỉ định đồng chủ trì",
+			label: "Chỉ định đồng chủ phòng",
 			condition: () => props.canPromoteToCohost,
 			onClick: () => emit("promoteToCohost", props.participant.user_id),
 		},

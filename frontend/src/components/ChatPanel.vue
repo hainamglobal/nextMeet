@@ -75,7 +75,7 @@
 						/>
 					</template>
 					<div v-else class="text-center text-sm text-gray-500 py-3 bg-gray-50 rounded border border-gray-200 m-2">
-						Chủ trì chỉ cho phép chủ trì và đồng chủ trì trò chuyện.
+						Chỉ chủ phòng và đồng chủ phòng mới có thể trò chuyện.
 					</div>
 				</form>
 			</div>

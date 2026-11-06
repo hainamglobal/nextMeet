@@ -10,7 +10,7 @@
 			</h2>
 
 			<p class="text-ink-gray-6 text-base">
-				Chủ trì cuộc họp sẽ cho bạn vào trong ít phút nữa.
+				Chủ phòng sẽ cho bạn vào cuộc họp trong ít phút nữa.
 			</p>
 
 			<div class="flex flex-col gap-3">

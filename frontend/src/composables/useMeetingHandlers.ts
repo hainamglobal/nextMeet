@@ -191,27 +191,32 @@ export function useMeetingHandlers(deps: MeetingHandlersDeps) {
 	};
 
 	const handleKickParticipant = async (participantId: string, ban = false) => {
-		try {
-			if (ban) {
-				await deps.meetingDoc.setValue.submit({
-					banned_users: [
-						...(deps.meetingDoc.doc?.banned_users || []),
-						{ user: participantId },
-					],
+		if (ban) {
+			try {
+				await frappeRequest({
+					url: "meet.api.meeting.ban_meeting_participant",
+					params: { meeting_id: deps.meetingId, user_id: participantId },
 				});
+			} catch (error) {
+				console.error("Failed to ban participant:", error);
+				toast.error("Không thể chặn người tham gia quay lại cuộc họp");
 			}
+		}
 
-			if (deps.sfuConnection.sfuManager.value?.sfuClient) {
-				deps.sfuConnection.sfuManager.value.sfuClient.sendEvent(
-					"host_control",
-					{
-						action: "kick_participant",
-						targetParticipantId: participantId,
-					},
-				);
+		try {
+			if (!deps.sfuConnection.sfuManager.value?.sfuClient) {
+				throw new Error("Meeting connection is unavailable");
 			}
+			deps.sfuConnection.sfuManager.value.sfuClient.sendEvent(
+				"host_control",
+				{
+					action: "kick_participant",
+					targetParticipantId: participantId,
+				},
+			);
 		} catch (error) {
 			console.error("Failed to kick participant:", error);
+			toast.error("Không thể xóa người tham gia khỏi cuộc họp");
 		}
 	};
 
@@ -242,12 +247,12 @@ export function useMeetingHandlers(deps: MeetingHandlersDeps) {
 			});
 
 			if ((response as { meeting_id?: string })?.meeting_id) {
-				toast.success("Đã chỉ định người dùng làm đồng chủ trì");
+				toast.success("Đã chỉ định người dùng làm đồng chủ phòng");
 				await deps.meetingDoc.reload();
 			}
 		} catch (error) {
 			console.error("Failed to promote participant:", error);
-			toast.error("Không thể chỉ định người dùng làm đồng chủ trì");
+			toast.error("Không thể chỉ định người dùng làm đồng chủ phòng");
 		}
 	};
 

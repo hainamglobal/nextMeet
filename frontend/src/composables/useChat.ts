@@ -81,7 +81,7 @@ export function useChat(deps: {
 
 		sfuClient.on("sfu_error", (data: Record<string, unknown>) => {
 			if (data?.code === "HOST_ONLY_CHAT") {
-				toast.error("Chủ trì chỉ cho phép chủ trì và đồng chủ trì trò chuyện.");
+				toast.error("Chỉ chủ phòng và đồng chủ phòng mới có thể trò chuyện.");
 				chatStore.hostOnlyChat = true;
 			}
 		});

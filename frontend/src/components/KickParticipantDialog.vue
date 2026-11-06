@@ -2,7 +2,7 @@
 	<Dialog
 		v-model="showDialog"
 		:options="{
-			title: 'Remove Participant',
+			title: 'Xóa người tham gia',
 			size: 'sm',
 			actions: [
 				{

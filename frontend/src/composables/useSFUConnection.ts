@@ -329,7 +329,7 @@ export function useSFUConnection(deps: {
 			},
 			onHostMutedYou: onHostMutedYou,
 			onHostKickedYou: (_data: unknown) => {
-				toast.error("Chủ trì đã xóa bạn khỏi cuộc họp");
+				toast.error("Chủ phòng đã xóa bạn khỏi cuộc họp");
 				onHostKickedYou();
 			},
 		};
@@ -493,7 +493,7 @@ export function useSFUConnection(deps: {
 					stopGuestApprovalListener();
 					lobbyStore.isWaitingForApproval = false;
 					lobbyStore.isJoinRequestRejected = true;
-					toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
+					toast.error("Chủ phòng đã từ chối yêu cầu tham gia của bạn");
 					return;
 				}
 
@@ -546,7 +546,7 @@ export function useSFUConnection(deps: {
 			lobbyStore.isJoinRequestRejected = true;
 			lobbyStore.isWaitingForApproval = false;
 
-			toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
+			toast.error("Chủ phòng đã từ chối yêu cầu tham gia của bạn");
 		}
 	};
 
@@ -630,7 +630,7 @@ export function useSFUConnection(deps: {
 			lobbyStore.isJoinRequestRejected = true;
 			lobbyStore.isWaitingForApproval = false;
 
-			toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
+			toast.error("Chủ phòng đã từ chối yêu cầu tham gia của bạn");
 		}
 	};
 
@@ -661,7 +661,7 @@ export function useSFUConnection(deps: {
 			} else if (result.status === "rejected") {
 				lobbyStore.isWaitingForApproval = false;
 				lobbyStore.isJoinRequestRejected = true;
-				toast.error("Chủ trì đã từ chối yêu cầu tham gia của bạn");
+				toast.error("Chủ phòng đã từ chối yêu cầu tham gia của bạn");
 			}
 		} catch (error) {
 			console.error("Failed to sync meeting join status:", error);

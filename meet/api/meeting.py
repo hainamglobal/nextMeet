@@ -876,6 +876,18 @@ def reject_join_request(meeting_id: str, user_id: str, guest_id: str | None = No
 
 
 @frappe.whitelist(allow_guest=True)
+def ban_meeting_participant(meeting_id: str, user_id: str, guest_id: str | None = None) -> dict:
+	"""Prevent a removed meeting participant from rejoining."""
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not _is_meeting_host(meeting, caller):
+		frappe.throw(_("Only the meeting host can remove participants"), frappe.PermissionError)
+
+	meeting.add_user_to_table("banned_users", user_id, save=True, ignore_permissions=True)
+	return {"meeting_id": meeting_id, "user_id": user_id, "message": "Participant banned successfully"}
+
+
+@frappe.whitelist(allow_guest=True)
 def get_waiting_room(meeting_id: str, guest_id: str | None = None) -> dict:
 	"""Get list of users waiting for approval"""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)

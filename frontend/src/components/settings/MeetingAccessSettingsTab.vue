@@ -5,17 +5,6 @@
 	>
 		<template #content>
 			<div class="space-y-6">
-				<!-- Allow Guest Toggle -->
-				<div class="space-y-3">
-					<Switch
-						class="w-full !px-0"
-						label="Cho phép khách"
-						description="Cho phép người chưa đăng ký tham gia cuộc họp này"
-						v-model="allowGuest"
-						:disabled="meetingDoc.updateSettings.loading || meetingDoc.get.loading"
-					/>
-				</div>
-
 				<!-- Meeting Type Selector -->
 				<div>
 					<FormControl
@@ -28,7 +17,7 @@
 								value: 'open',
 							},
 							{
-								label: 'Hạn chế - Cần chủ trì phê duyệt',
+								label: 'Hạn chế - Cần chủ phòng phê duyệt',
 								value: 'restricted',
 							},
 						]"
@@ -39,8 +28,8 @@
 				<div class="space-y-3">
                     <Switch
                         class="w-full !px-0"
-                        label="Chỉ chủ trì được trò chuyện"
-                        description="Chỉ chủ trì và đồng chủ trì mới có thể gửi tin nhắn"
+                        label="Chỉ chủ phòng được trò chuyện"
+                        description="Chỉ chủ phòng và đồng chủ phòng mới có thể gửi tin nhắn"
                         v-model="hostOnlyChat"
                         :disabled="meetingDoc.updateSettings.loading || meetingDoc.get.loading"
                     />
@@ -52,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { debounce, FormControl, Switch, toast } from "frappe-ui";
+import { debounce, FormControl, Switch } from "frappe-ui";
 import { onMounted, ref, watch } from "vue";
 import { useChatStore } from "@/composables/useChatStore";
 import { useMeetingDoc } from "../../composables/useMeetingDoc";
@@ -67,13 +56,11 @@ const props = defineProps({
 
 const {
 	getMeetingDoc,
-	allowGuest: globalAllowGuest,
 	meetingType: globalMeetingType,
 } = useMeetingDoc();
 
 const chatStore = useChatStore();
 
-const allowGuest = ref<boolean>(globalAllowGuest.value);
 const meetingType = ref<string>(globalMeetingType.value);
 const hostOnlyChat = ref<boolean>(chatStore.hostOnlyChat);
 
@@ -81,7 +68,6 @@ const meetingDoc = getMeetingDoc(props.meetingId);
 
 onMounted(async () => {
 	try {
-		allowGuest.value = globalAllowGuest.value;
 		meetingType.value = globalMeetingType.value;
 		if (meetingDoc.doc?.host_only_chat !== undefined) {
 			hostOnlyChat.value = !!meetingDoc.doc.host_only_chat;
@@ -96,7 +82,6 @@ const saveSettings = debounce(async () => {
 
 	try {
 		await meetingDoc.updateSettings.submit({
-			allow_guest: allowGuest.value,
 			meeting_type: meetingType.value,
 			host_only_chat: hostOnlyChat.value,
 		});
@@ -104,7 +89,6 @@ const saveSettings = debounce(async () => {
 		await meetingDoc.reload();
 	} catch (error) {
 		console.error("Failed to update meeting settings:", error);
-		toast.error("Không thể cập nhật cài đặt cuộc họp");
 
 		if (meetingDoc.doc?.host_only_chat !== undefined) {
 			hostOnlyChat.value = !!meetingDoc.doc.host_only_chat;
@@ -115,7 +99,7 @@ const saveSettings = debounce(async () => {
 watch(hostOnlyChat, (newValue) => {
 	chatStore.hostOnlyChat = newValue;
 });
-watch([allowGuest, meetingType, hostOnlyChat], () => {
+watch([meetingType, hostOnlyChat], () => {
 	if (!meetingDoc.get.loading) {
 		saveSettings();
 	}
