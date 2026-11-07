@@ -24,19 +24,14 @@
 				<p class="text-base text-ink-gray-7">
 					Bạn có chắc muốn xóa <strong>{{ participantName }}</strong> khỏi cuộc họp không?
 				</p>
-				<FormControl
-					label="Chặn người này khỏi cuộc họp?"
-					type="checkbox"
-					v-model="banFromMeeting"
-				/>
 			</div>
 		</template>
 	</Dialog>
 </template>
 
 <script setup lang="ts">
-import { Dialog, FormControl } from "frappe-ui";
-import { computed, ref } from "vue";
+import { Dialog } from "frappe-ui";
+import { computed } from "vue";
 
 interface Props {
 	participantName: string;
@@ -54,16 +49,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-const banFromMeeting = ref(false);
-
 const showDialog = computed({
 	get: () => props.modelValue,
 	set: (value: boolean) => emit("update:modelValue", value),
 });
 
 const handleKickConfirm = () => {
-	emit("confirm", banFromMeeting.value);
-	banFromMeeting.value = false;
+	emit("confirm", false);
 	showDialog.value = false;
 };
 </script>
