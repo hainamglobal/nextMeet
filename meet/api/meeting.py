@@ -286,6 +286,19 @@ def invite_meeting_user(
 		"invited_on": now,
 	})
 	meeting.save(ignore_permissions=True)
+
+	_schedule_mtp_invitation_event(
+        host_name=meeting.host_name,
+        meeting_id=meeting.name,
+        event_type="meeting_invitation",
+        invitation_id=invitation_id,
+        invitee_email=invitee_email,
+        invitee_name=invitation.invitee_name or invitee_email,
+        invited_by=invitation.invited_by,
+        invited_by_name=invitation.invited_by_name,
+        title=meeting.meeting_title or "",
+	)
+
 	return {
 		"invitation_id": invitation_id,
 		"invitee_email": invitee_email,
@@ -628,6 +641,16 @@ def respond_meeting_invitation(
 		invitation.status = "Expired"
 		invitation.responded_on = _invitation_expiration(invitation)
 		meeting.save(ignore_permissions=True)
+
+		_schedule_mtp_invitation_event(
+                host_name=meeting.host_name,
+                meeting_id=meeting.name,
+                event_type="meeting_invitation_response",
+                invitation_id=invitation_id,
+                invitee_email=email,
+                invited_by=invitation.invited_by,
+                invitation_status="Expired",
+        )
 		return {
 			"meeting_id": meeting_id,
 			"invitation_id": invitation_id,
@@ -637,6 +660,17 @@ def respond_meeting_invitation(
 	invitation.status = response
 	invitation.responded_on = frappe.utils.now_datetime()
 	meeting.save(ignore_permissions=True)
+
+	_schedule_mtp_invitation_event(
+        host_name=meeting.host_name,
+        meeting_id=meeting.name,
+        event_type="meeting_invitation_response",
+        invitation_id=invitation_id,
+        invitee_email=email,
+        invited_by=invitation.invited_by,
+        invitation_status=response,
+	)
+
 	return {
 		"meeting_id": meeting_id,
 		"invitation_id": invitation_id,
@@ -691,6 +725,139 @@ def notify_mtp_meeting_created(host_name: str, meeting_id: str, title: str):
 	except requests.RequestException as exc:
 		frappe.log_error("Meet Meeting Created Relay", str(exc))
 
+
+def _relay_mtp_invitation_event(
+        host_name: str,
+        meeting_id: str,
+        event_type: str,
+        invitation_id: str,
+        invitee_email: str,
+        invitee_name: str = "",
+        invited_by: str = "",
+        invited_by_name: str = "",
+        title: str = "",
+        invitation_status: str | None = None,
+):
+        """Relay invitation events to the registered NextGRP site."""
+        host_name = (host_name or "").strip().lower().rstrip(".")
+        invitee_email = (invitee_email or "").strip().lower()
+        invited_by = (invited_by or "").strip().lower()
+
+        callback = frappe.db.get_value(
+                "Meet Domain",
+                host_name,
+                ["callback_url", "callback_secret"],
+                as_dict=True,
+        )
+
+        if not callback or not callback.callback_url or not callback.callback_secret:
+                frappe.logger("meet_invitation_realtime").error(
+                        "No callback registered for host=%s event=%s",
+                        host_name,
+                        event_type,
+                )
+                return False
+
+        timestamp = int(time.time())
+
+        if event_type == "meeting_invitation":
+                payload = {
+                        "host_name": host_name,
+                        "meeting_id": meeting_id,
+                        "event_type": event_type,
+                        "timestamp": timestamp,
+                        "invitation_id": invitation_id,
+                        "invitee_email": invitee_email,
+                        "invitee_name": invitee_name or invitee_email,
+                        "invited_by": invited_by,
+                        "invited_by_name": invited_by_name or invited_by,
+                        "title": title or "",
+                }
+
+                signature_payload = "\n".join([
+                        host_name,
+                        meeting_id,
+                        invitation_id,
+                        invitee_email,
+                        invitee_name or invitee_email,
+                        invited_by,
+                        invited_by_name or invited_by,
+                        title or "",
+                        str(timestamp),
+                ]).encode()
+
+        elif event_type == "meeting_invitation_response":
+                payload = {
+                        "host_name": host_name,
+                        "meeting_id": meeting_id,
+                        "event_type": event_type,
+                        "timestamp": timestamp,
+                        "invitation_id": invitation_id,
+                        "invitee_email": invitee_email,
+                        "invited_by": invited_by,
+                        "invitation_status": invitation_status,
+                }
+
+                signature_payload = "\n".join([
+                        host_name,
+                        meeting_id,
+                        invitation_id,
+                        invitee_email,
+                        invited_by,
+                        invitation_status or "",
+                        str(timestamp),
+                ]).encode()
+
+        else:
+                frappe.logger("meet_invitation_realtime").error(
+                        "Unsupported invitation event: %s", event_type
+                )
+                return False
+
+        signature = hmac.new(
+                callback.callback_secret.encode(),
+                signature_payload,
+                hashlib.sha256,
+        ).hexdigest()
+
+        try:
+                response = requests.post(
+                        callback.callback_url,
+                        json=payload,
+                        headers={
+                                "X-Meet-Event-Signature": signature,
+                        },
+                        timeout=(3.05, 6),
+                )
+                response.raise_for_status()
+
+                frappe.logger("meet_invitation_realtime").info(
+                        "Relayed invitation event: host=%s meeting=%s "
+                        "invitation=%s type=%s",
+                        host_name,
+                        meeting_id,
+                        invitation_id,
+                        event_type,
+                )
+                return True
+
+        except requests.RequestException as exc:
+                frappe.log_error(
+                        f"Host: {host_name}\n"
+                        f"Meeting: {meeting_id}\n"
+                        f"Invitation: {invitation_id}\n"
+                        f"Event: {event_type}\n"
+                        f"Error: {exc}",
+                        "Meet Invitation Realtime Relay",
+                )
+                return False
+
+
+def _schedule_mtp_invitation_event(**kwargs):
+        """Send the callback only after the invitation transaction commits."""
+        frappe.db.after_commit.add(
+                lambda: _relay_mtp_invitation_event(**kwargs)
+        )
 
 
 def _is_meeting_host(meeting: "SaeMeeting", user: str) -> bool:
