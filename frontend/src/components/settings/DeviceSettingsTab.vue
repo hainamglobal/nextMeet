@@ -55,7 +55,7 @@
 					<div>
 						<Button class="mt-3" v-if="selectedSpeakerIdLocal" @click="testSpeaker" :loading="isTestingAudio"
 							icon-left="volume-2">
-							Test
+							Kiểm tra
 						</Button>
 					</div>
 				</div>

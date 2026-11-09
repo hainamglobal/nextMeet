@@ -195,11 +195,16 @@ export function useMeetingHandlers(deps: MeetingHandlersDeps) {
 			try {
 				await frappeRequest({
 					url: "meet.api.meeting.ban_meeting_participant",
-					params: { meeting_id: deps.meetingId, user_id: participantId },
+					params: {
+						meeting_id: deps.meetingId,
+						user_id: participantId,
+						guest_id: deps.connectionState.guestId || undefined,
+					},
 				});
 			} catch (error) {
 				console.error("Failed to ban participant:", error);
 				toast.error("Không thể chặn người tham gia quay lại cuộc họp");
+				return;
 			}
 		}
 

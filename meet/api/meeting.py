@@ -1120,8 +1120,8 @@ def ban_meeting_participant(meeting_id: str, user_id: str, guest_id: str | None 
 	"""Prevent a removed meeting participant from rejoining."""
 	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
 	caller = _get_meeting_caller(meeting, guest_id)
-	if not caller or not _is_meeting_host(meeting, caller):
-		frappe.throw(_("Only the meeting host can remove participants"), frappe.PermissionError)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Only hosts and co-hosts can block participants"), frappe.PermissionError)
 
 	meeting.add_user_to_table("banned_users", user_id, save=True, ignore_permissions=True)
 	return {"meeting_id": meeting_id, "user_id": user_id, "message": "Participant banned successfully"}

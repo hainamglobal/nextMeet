@@ -19,7 +19,7 @@
 			variant="outline"
 			@click="copyTextContentToClipboard"
 		>
-			{{ copied ? "copied" : "copy" }}
+			{{ copied ? "Đã sao chép" : "Sao chép" }}
 		</button>
 	</div>
 </template>
