@@ -262,53 +262,101 @@ def invite_meeting_user(
 	actor_name: str = "",
 	expected_host_name: str | None = None,
 ) -> dict:
+	results = invite_meeting_users(
+		meeting_id=meeting_id,
+		invitee_emails=[invitee_email],
+		actor_email=actor_email,
+		actor_name=actor_name,
+		expected_host_name=expected_host_name,
+	)
+	if not results:
+		frappe.throw(_("Could not invite user"), frappe.ValidationError)
+	return results[0]
+
+
+@frappe.whitelist()
+def invite_meeting_users(
+	meeting_id: str,
+	invitee_emails: list[str] | str,
+	actor_email: str,
+	actor_name: str = "",
+	expected_host_name: str | None = None,
+) -> list[dict]:
 	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
-	invitee_email = (invitee_email or "").strip().lower()
-	if not invitee_email or "@" not in invitee_email:
-		frappe.throw(_("A valid user email is required"), frappe.ValidationError)
-	if invitee_email == (meeting.created_by_email or "").strip().lower():
-		frappe.throw(_("The meeting host is already a member"), frappe.ValidationError)
+	if isinstance(invitee_emails, str):
+		invitee_emails = (
+			frappe.parse_json(invitee_emails)
+			if invitee_emails.strip().startswith("[")
+			else [e.strip() for e in invitee_emails.split(",") if e.strip()]
+		)
+	if not isinstance(invitee_emails, (list, tuple)):
+		frappe.throw(_("invitee_emails must be a list of email addresses"), frappe.ValidationError)
+
 	now = now_datetime()
+	host_email = (meeting.created_by_email or "").strip().lower()
+
 	for row in meeting.invitations or []:
 		if row.status == "Invited" and _invitation_expired(row, now):
 			row.status = "Expired"
 			row.responded_on = _invitation_expiration(row)
-		if row.invitee_email == invitee_email and row.status == "Invited":
-			frappe.throw(_("This user already has a pending invitation"), frappe.ValidationError)
-	invitation_id = secrets.token_urlsafe(18)
-	invitation = meeting.append("invitations", {
-		"invitation_id": invitation_id,
-		"invitee_email": invitee_email,
-		"invitee_name": invitee_email,
-		"invited_by": actor_email.strip().lower(),
-		"invited_by_name": (actor_name or meeting.created_by_name or actor_email).strip()[:140],
-		"status": "Invited",
-		"invited_on": now,
-	})
-	meeting.save(ignore_permissions=True)
 
-	_schedule_mtp_invitation_event(
-        host_name=meeting.host_name,
-        meeting_id=meeting.name,
-        event_type="meeting_invitation",
-        invitation_id=invitation_id,
-        invitee_email=invitee_email,
-        invitee_name=invitation.invitee_name or invitee_email,
-        invited_by=invitation.invited_by,
-        invited_by_name=invitation.invited_by_name,
-        title=meeting.meeting_title or "",
-	)
-
-	return {
-		"invitation_id": invitation_id,
-		"invitee_email": invitee_email,
-		"invitee_name": invitation.invitee_name,
-		"invited_by_name": invitation.invited_by_name,
-		"invited_on": invitation.invited_on,
-		"meeting_id": meeting.name,
-		"meeting_title": meeting.meeting_title,
-		"status": invitation.status,
+	pending_emails = {
+		(row.invitee_email or "").strip().lower()
+		for row in meeting.invitations or []
+		if row.status == "Invited" and row.invitee_email
 	}
+
+	created_invitations = []
+	for raw_email in invitee_emails:
+		clean_email = (raw_email or "").strip().lower()
+		if not clean_email or "@" not in clean_email:
+			continue
+		if clean_email == host_email:
+			continue
+		if clean_email in pending_emails:
+			continue
+
+		pending_emails.add(clean_email)
+		invitation_id = secrets.token_urlsafe(18)
+		invitation = meeting.append("invitations", {
+			"invitation_id": invitation_id,
+			"invitee_email": clean_email,
+			"invitee_name": clean_email,
+			"invited_by": actor_email.strip().lower(),
+			"invited_by_name": (actor_name or meeting.created_by_name or actor_email).strip()[:140],
+			"status": "Invited",
+			"invited_on": now,
+		})
+		created_invitations.append((invitation, clean_email))
+
+	results = []
+	if created_invitations:
+		meeting.save(ignore_permissions=True)
+
+		for invitation, clean_email in created_invitations:
+			_schedule_mtp_invitation_event(
+				host_name=meeting.host_name,
+				meeting_id=meeting.name,
+				event_type="meeting_invitation",
+				invitation_id=invitation.invitation_id,
+				invitee_email=clean_email,
+				invitee_name=invitation.invitee_name or clean_email,
+				invited_by=invitation.invited_by,
+				invited_by_name=invitation.invited_by_name,
+				title=meeting.meeting_title or "",
+			)
+			results.append({
+				"invitation_id": invitation.invitation_id,
+				"invitee_email": clean_email,
+				"invitee_name": invitation.invitee_name,
+				"invited_by_name": invitation.invited_by_name,
+				"invited_on": invitation.invited_on,
+				"meeting_id": meeting.name,
+				"meeting_title": meeting.meeting_title,
+				"status": invitation.status,
+			})
+
+	return results
 
 
 @frappe.whitelist()
