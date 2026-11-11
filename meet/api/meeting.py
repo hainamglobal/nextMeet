@@ -305,13 +305,22 @@ def invite_meeting_users(
 			row.status = "Expired"
 			row.responded_on = _invitation_expiration(row)
 
-	# Keep one invitation row per invitee/type. Re-sending an invitation must
-	# update and reuse that row instead of creating another child record.
-	existing_invitations = {}
+	# Keep one invitation row per invitee/type. Older versions could create
+	# duplicate child rows, so collapse those rows when this endpoint is used.
+	grouped_invitations = {}
 	for row in meeting.invitations or []:
 		key = ((row.invitee_email or "").strip().lower(), row.invitation_type or "Participant")
-		if key[0] and key not in existing_invitations:
-			existing_invitations[key] = row
+		if key[0]:
+			grouped_invitations.setdefault(key, []).append(row)
+	existing_invitations = {}
+	duplicate_rows = []
+	for key, rows in grouped_invitations.items():
+		accepted = [row for row in rows if row.status == "Accepted"]
+		canonical = max(accepted or rows, key=lambda row: row.idx or 0)
+		existing_invitations[key] = canonical
+		duplicate_rows.extend(row for row in rows if row is not canonical)
+	if duplicate_rows:
+		meeting.set("invitations", [row for row in meeting.invitations if row not in duplicate_rows])
 
 	created_invitations = []
 	for raw_email in invitee_emails:
