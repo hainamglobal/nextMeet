@@ -305,14 +305,13 @@ def invite_meeting_users(
 			row.status = "Expired"
 			row.responded_on = _invitation_expiration(row)
 
-	pending_invitation_keys = {
-		(
-			(row.invitee_email or "").strip().lower(),
-			row.invitation_type or "Participant",
-		)
-		for row in meeting.invitations or []
-		if row.status == "Invited" and row.invitee_email
-	}
+	# Keep one invitation row per invitee/type. Re-sending an invitation must
+	# update and reuse that row instead of creating another child record.
+	existing_invitations = {}
+	for row in meeting.invitations or []:
+		key = ((row.invitee_email or "").strip().lower(), row.invitation_type or "Participant")
+		if key[0] and key not in existing_invitations:
+			existing_invitations[key] = row
 
 	created_invitations = []
 	for raw_email in invitee_emails:
@@ -322,13 +321,26 @@ def invite_meeting_users(
 		if clean_email == host_email:
 			continue
 		invitation_key = (clean_email, invitation_type)
-		if invitation_key in pending_invitation_keys:
+		invitation = existing_invitations.get(invitation_key)
+		if invitation:
+			# An active or accepted invitation is already the requested result.
+			# Expired/declined invitations are re-opened using the same row/id.
+			if invitation.status == "Invited" and not _invitation_expired(invitation, now):
+				created_invitations.append((invitation, clean_email, False))
+				continue
+			if invitation.status == "Accepted":
+				created_invitations.append((invitation, clean_email, False))
+				continue
+			invitation.status = "Invited"
+			invitation.responded_on = None
+			invitation.invited_on = now
+			invitation.invited_by = actor_email.strip().lower()
+			invitation.invited_by_name = (actor_name or meeting.created_by_name or actor_email).strip()[:140]
+			created_invitations.append((invitation, clean_email, True))
 			continue
 
-		pending_invitation_keys.add(invitation_key)
-		invitation_id = secrets.token_urlsafe(18)
 		invitation = meeting.append("invitations", {
-			"invitation_id": invitation_id,
+			"invitation_id": secrets.token_urlsafe(18),
 			"invitation_type": invitation_type,
 			"invitee_email": clean_email,
 			"invitee_name": clean_email,
@@ -337,13 +349,15 @@ def invite_meeting_users(
 			"status": "Invited",
 			"invited_on": now,
 		})
-		created_invitations.append((invitation, clean_email))
+		created_invitations.append((invitation, clean_email, True))
 
 	results = []
 	if created_invitations:
 		meeting.save(ignore_permissions=True)
 
-		for invitation, clean_email in created_invitations:
+		for invitation, clean_email, should_notify in created_invitations:
+			if not should_notify:
+				continue
 			_schedule_mtp_invitation_event(
 				host_name=meeting.host_name,
 				meeting_id=meeting.name,
@@ -356,6 +370,7 @@ def invite_meeting_users(
 				title=meeting.meeting_title or "",
 				invitation_type=invitation_type,
 			)
+		for invitation, clean_email, _ in created_invitations:
 			results.append({
 				"invitation_id": invitation.invitation_id,
 				"invitee_email": clean_email,
@@ -737,6 +752,15 @@ def respond_meeting_invitation(
 		}
 	invitation.status = response
 	invitation.responded_on = frappe.utils.now_datetime()
+	if response == "Accepted" and invitation.invitation_type == "CoHost":
+		# Promote on the Meet site after the invitee accepts. The invitation
+		# row remains the single source of truth for this email.
+		co_host_email = (invitation.invitee_email or "").strip().lower()
+		if not any((row.user or "").strip().lower() == co_host_email for row in meeting.co_hosts or []):
+			meeting.append("co_hosts", {
+				"user": co_host_email,
+				"user_name": invitation.invitee_name or co_host_email,
+			})
 	meeting.save(ignore_permissions=True)
 
 	_schedule_mtp_invitation_event(
