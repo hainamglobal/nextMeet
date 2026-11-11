@@ -25,6 +25,7 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.invite_meeting_user",
 	"meet.api.meeting.add_meeting_co_host",
 	"meet.api.meeting.remove_meeting_co_host",
+	"meet.api.meeting.set_meeting_co_hosts",
 	"meet.api.meeting.delete_mtp_meeting",
 	"meet.api.meeting.get_my_meeting_invitations",
 	"meet.api.meeting.get_user_meetings",
@@ -58,6 +59,7 @@ def request(method_name, params):
 	elif method_name in {
 		"meet.api.meeting.add_meeting_co_host",
 		"meet.api.meeting.remove_meeting_co_host",
+		"meet.api.meeting.set_meeting_co_hosts",
 		"meet.api.meeting.delete_mtp_meeting",
 		"meet.api.meeting.invite_meeting_user",
 		"meet.api.meeting.get_my_meeting_invitations",
