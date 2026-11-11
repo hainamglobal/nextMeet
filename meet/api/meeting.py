@@ -375,12 +375,11 @@ def invite_meeting_co_host(
 	actor_name: str = "",
 	expected_host_name: str | None = None,
 ) -> dict:
-	return invite_meeting_user(
+	return add_meeting_co_host(
 		meeting_id=meeting_id,
-		invitee_email=invitee_email,
+		co_host_email=invitee_email,
+		co_host_name=invitee_email,
 		actor_email=actor_email,
-		actor_name=actor_name,
-		invitation_type="CoHost",
 		expected_host_name=expected_host_name,
 	)
 
