@@ -360,6 +360,24 @@ def invite_meeting_users(
 
 
 @frappe.whitelist()
+def invite_meeting_co_host(
+	meeting_id: str,
+	invitee_email: str,
+	actor_email: str,
+	actor_name: str = "",
+	expected_host_name: str | None = None,
+) -> dict:
+	return invite_meeting_user(
+		meeting_id=meeting_id,
+		invitee_email=invitee_email,
+		actor_email=actor_email,
+		actor_name=actor_name,
+		invitation_type="CoHost",
+		expected_host_name=expected_host_name,
+	)
+
+
+@frappe.whitelist()
 def add_meeting_co_host(
 	meeting_id: str,
 	co_host_email: str,
