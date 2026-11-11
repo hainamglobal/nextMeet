@@ -305,8 +305,11 @@ def invite_meeting_users(
 			row.status = "Expired"
 			row.responded_on = _invitation_expiration(row)
 
-	pending_emails = {
-		(row.invitee_email or "").strip().lower()
+	pending_invitation_keys = {
+		(
+			(row.invitee_email or "").strip().lower(),
+			row.invitation_type or "Participant",
+		)
 		for row in meeting.invitations or []
 		if row.status == "Invited" and row.invitee_email
 	}
@@ -318,10 +321,11 @@ def invite_meeting_users(
 			continue
 		if clean_email == host_email:
 			continue
-		if clean_email in pending_emails:
+		invitation_key = (clean_email, invitation_type)
+		if invitation_key in pending_invitation_keys:
 			continue
 
-		pending_emails.add(clean_email)
+		pending_invitation_keys.add(invitation_key)
 		invitation_id = secrets.token_urlsafe(18)
 		invitation = meeting.append("invitations", {
 			"invitation_id": invitation_id,
