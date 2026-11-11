@@ -260,6 +260,7 @@ def invite_meeting_user(
 	invitee_email: str,
 	actor_email: str,
 	actor_name: str = "",
+	invitation_type: str = "Participant",
 	expected_host_name: str | None = None,
 ) -> dict:
 	results = invite_meeting_users(
@@ -267,6 +268,7 @@ def invite_meeting_user(
 		invitee_emails=[invitee_email],
 		actor_email=actor_email,
 		actor_name=actor_name,
+		invitation_type=invitation_type,
 		expected_host_name=expected_host_name,
 	)
 	if not results:
@@ -280,6 +282,7 @@ def invite_meeting_users(
 	invitee_emails: list[str] | str,
 	actor_email: str,
 	actor_name: str = "",
+	invitation_type: str = "Participant",
 	expected_host_name: str | None = None,
 ) -> list[dict]:
 	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
@@ -291,6 +294,8 @@ def invite_meeting_users(
 		)
 	if not isinstance(invitee_emails, (list, tuple)):
 		frappe.throw(_("invitee_emails must be a list of email addresses"), frappe.ValidationError)
+	if invitation_type not in {"Participant", "CoHost"}:
+		frappe.throw(_("Invalid invitation type"), frappe.ValidationError)
 
 	now = now_datetime()
 	host_email = (meeting.created_by_email or "").strip().lower()
@@ -320,6 +325,7 @@ def invite_meeting_users(
 		invitation_id = secrets.token_urlsafe(18)
 		invitation = meeting.append("invitations", {
 			"invitation_id": invitation_id,
+			"invitation_type": invitation_type,
 			"invitee_email": clean_email,
 			"invitee_name": clean_email,
 			"invited_by": actor_email.strip().lower(),
@@ -344,6 +350,7 @@ def invite_meeting_users(
 				invited_by=invitation.invited_by,
 				invited_by_name=invitation.invited_by_name,
 				title=meeting.meeting_title or "",
+				invitation_type=invitation_type,
 			)
 			results.append({
 				"invitation_id": invitation.invitation_id,
@@ -354,6 +361,7 @@ def invite_meeting_users(
 				"meeting_id": meeting.name,
 				"meeting_title": meeting.meeting_title,
 				"status": invitation.status,
+				"invitation_type": invitation.invitation_type or invitation_type,
 			})
 
 	return results
