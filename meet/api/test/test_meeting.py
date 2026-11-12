@@ -21,6 +21,7 @@ from meet.api.meeting import (
 	get_sfu_presence_preview_token,
 	delete_mtp_meeting,
 	invite_meeting_user,
+	invite_meeting_co_host,
 	get_my_meeting_invitations,
 	get_user_meeting,
 	get_user_meetings,
@@ -268,6 +269,51 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		self.assertEqual(retried["status"], "Accepted")
 		self.assertTrue(retried["already_responded"])
 		self.assertEqual(conflicting_retry["status"], "Accepted")
+
+	def test_co_host_invitation_keeps_role_and_promotes_only_on_acceptance(self):
+		self.meeting.host_name = frappe.local.site
+		self.meeting.created_by_email = self.host_email
+		self.meeting.save(ignore_permissions=True)
+		frappe.set_user(self.host_email)
+
+		invitation = invite_meeting_co_host(
+			self.meeting.name,
+			self.member_email,
+			actor_email=self.host_email,
+			actor_name="Meeting Host",
+			expected_host_name=frappe.local.site,
+		)
+		self.assertEqual(invitation["invitation_type"], "CoHost")
+		self.assertEqual(
+			len(get_my_meeting_invitations(self.member_email, frappe.local.site)),
+			1,
+		)
+
+		frappe.set_user(self.member_email)
+		result = respond_meeting_invitation(
+			self.meeting.name,
+			invitation["invitation_id"],
+			"Accepted",
+			invitee_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		self.assertEqual(result["invitation_type"], "CoHost")
+		self.meeting.reload()
+		self.assertEqual(self.meeting.invitations[0].invitation_type, "CoHost")
+		self.assertEqual(self.meeting.invitations[0].status, "Accepted")
+		self.assertEqual(self.meeting.co_hosts[0].user, self.member_email)
+
+		retried = respond_meeting_invitation(
+			self.meeting.name,
+			invitation["invitation_id"],
+			"Accepted",
+			invitee_email=self.member_email,
+			expected_host_name=frappe.local.site,
+		)
+		self.meeting.reload()
+		self.assertEqual(retried["invitation_type"], "CoHost")
+		self.assertTrue(retried["already_responded"])
+		self.assertEqual(len(self.meeting.co_hosts), 1)
 
 	def test_user_meeting_list_contains_only_created_and_attended_meetings(self):
 		host_name = frappe.local.site

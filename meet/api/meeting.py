@@ -708,6 +708,10 @@ def get_user_meeting(
 	result = meeting.as_dict()
 	for row in result.get("co_hosts", []):
 		row["user"] = (row.get("user") or "").strip().lower()
+	result["invented"] = [
+		row for row in result.get("invitations", [])
+		if (row.get("invitation_type") or "Participant") != "CoHost"
+	]
 	return result
 
 
@@ -738,8 +742,10 @@ def respond_meeting_invitation(
 			"invitation_id": invitation_id,
 			"status": invitation.status,
 			"invited_by": invitation.invited_by,
+			"invitation_type": invitation.invitation_type or "Participant",
 			"already_responded": True,
 		}
+	invitation_type = invitation.invitation_type or "Participant"
 	if _invitation_expired(invitation, now_datetime()):
 		invitation.status = "Expired"
 		invitation.responded_on = _invitation_expiration(invitation)
@@ -753,16 +759,19 @@ def respond_meeting_invitation(
                 invitee_email=email,
                 invited_by=invitation.invited_by,
                 invitation_status="Expired",
+				invitation_type=invitation_type,
+				invitation_state="co_hosts" if invitation_type == "CoHost" else "invented",
         )
 		return {
 			"meeting_id": meeting_id,
 			"invitation_id": invitation_id,
 			"status": "Expired",
 			"invited_by": invitation.invited_by,
+			"invitation_type": invitation_type,
 		}
 	invitation.status = response
 	invitation.responded_on = frappe.utils.now_datetime()
-	if response == "Accepted" and invitation.invitation_type == "CoHost":
+	if response == "Accepted" and invitation_type == "CoHost":
 		# Promote on the Meet site after the invitee accepts. The invitation
 		# row remains the single source of truth for this email.
 		co_host_email = (invitation.invitee_email or "").strip().lower()
@@ -781,8 +790,8 @@ def respond_meeting_invitation(
         invitee_email=email,
         invited_by=invitation.invited_by,
         invitation_status=response,
-		invitation_type=invitation.invitation_type or "Participant",
-		invitation_state="co_hosts" if invitation.invitation_type == "CoHost" else "invented",
+		invitation_type=invitation_type,
+		invitation_state="co_hosts" if invitation_type == "CoHost" else "invented",
 	)
 
 	return {
@@ -790,7 +799,7 @@ def respond_meeting_invitation(
 		"invitation_id": invitation_id,
 		"status": response,
 		"invited_by": invitation.invited_by,
-		"invitation_type": invitation.invitation_type or "Participant",
+		"invitation_type": invitation_type,
 	}
 
 
