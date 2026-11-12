@@ -787,7 +787,32 @@ def respond_meeting_invitation(
 		"invitation_id": invitation_id,
 		"status": response,
 		"invited_by": invitation.invited_by,
+		"invitation_type": invitation.invitation_type or "Participant",
 	}
+
+
+@frappe.whitelist()
+def respond_meeting_co_host_invitation(
+	meeting_id: str,
+	invitation_id: str,
+	response: str,
+	invitee_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	"""Respond to a co-host invitation without accepting participant invites."""
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	invitation = next((row for row in meeting.invitations or [] if row.invitation_id == invitation_id), None)
+	if not invitation or invitation.invitation_type != "CoHost":
+		frappe.throw(_("This invitation is not a co-host invitation"), frappe.ValidationError)
+	result = respond_meeting_invitation(
+		meeting_id=meeting_id,
+		invitation_id=invitation_id,
+		response=response,
+		invitee_email=invitee_email,
+		expected_host_name=expected_host_name,
+	)
+	result["invitation_type"] = "CoHost"
+	return result
 
 
 def _has_accepted_invitation(meeting: "SaeMeeting", invitee_email: str) -> bool:

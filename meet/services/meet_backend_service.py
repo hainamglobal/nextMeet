@@ -32,6 +32,7 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.get_user_meetings",
 	"meet.api.meeting.get_user_meeting",
 	"meet.api.meeting.respond_meeting_invitation",
+	"meet.api.meeting.respond_meeting_co_host_invitation",
 	"meet.api.integration.record_user_domain",
 }
 
@@ -68,6 +69,7 @@ def request(method_name, params):
 		"meet.api.meeting.get_user_meetings",
 		"meet.api.meeting.get_user_meeting",
 		"meet.api.meeting.respond_meeting_invitation",
+		"meet.api.meeting.respond_meeting_co_host_invitation",
 	}:
 		params["expected_host_name"] = site_host_name
 	client = MeetBackendClient(get_backend_settings())
