@@ -781,6 +781,8 @@ def respond_meeting_invitation(
         invitee_email=email,
         invited_by=invitation.invited_by,
         invitation_status=response,
+		invitation_type=invitation.invitation_type or "Participant",
+		invitation_state="co_hosts" if invitation.invitation_type == "CoHost" else "invented",
 	)
 
 	return {
@@ -874,6 +876,8 @@ def _relay_mtp_invitation_event(
         invited_by_name: str = "",
         title: str = "",
         invitation_status: str | None = None,
+        invitation_type: str | None = None,
+        invitation_state: str | None = None,
 ):
         """Relay invitation events to the registered NextGRP site."""
         host_name = (host_name or "").strip().lower().rstrip(".")
@@ -933,6 +937,8 @@ def _relay_mtp_invitation_event(
                         "invitee_email": invitee_email,
                         "invited_by": invited_by,
                         "invitation_status": invitation_status,
+                        "invitation_type": invitation_type or "Participant",
+                        "invitation_state": invitation_state or "invented",
                 }
 
                 signature_payload = "\n".join([
@@ -941,7 +947,9 @@ def _relay_mtp_invitation_event(
                         invitation_id,
                         invitee_email,
                         invited_by,
+                        invitation_type or "Participant",
                         invitation_status or "",
+                        invitation_state or "invented",
                         str(timestamp),
                 ]).encode()
 
