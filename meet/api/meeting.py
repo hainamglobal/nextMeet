@@ -467,7 +467,7 @@ def get_my_meeting_invitations(
 			"parenttype": "Sae Meeting",
 			"parent": ["in", meeting_ids],
 		},
-		fields=["name", "invitation_id", "invitee_email", "invitee_name", "invited_by_name", "invited_on", "parent"],
+		fields=["name", "invitation_id", "invitation_type", "invitee_email", "invitee_name", "invited_by_name", "invited_on", "parent"],
 		order_by="creation desc",
 		limit=500,
 	)
@@ -486,6 +486,7 @@ def get_my_meeting_invitations(
 	return [
 		{
 			"invitation_id": row.invitation_id,
+			"invitation_type": row.invitation_type or "Participant",
 			"invitee_email": row.invitee_email,
 			"invitee_name": row.invitee_name,
 			"invited_by_name": row.invited_by_name,
