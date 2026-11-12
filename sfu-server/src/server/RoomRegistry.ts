@@ -11,6 +11,8 @@ export class RoomRegistry {
 	private previewSockets: Map<string, Set<string>> = new Map();
 	private raisedHands: Record<string, Record<string, string>> = {};
 	private hostOnlyChat: Record<string, boolean> = {};
+	private activeParticipants: Map<string, Set<string>> = new Map();
+	private disconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
 	constructor(io: Server<ClientToServerEvents, ServerToClientEvents>) {
 		this.io = io;
@@ -20,6 +22,51 @@ export class RoomRegistry {
 		const set = this.fullAccessSockets.get(roomId) ?? new Set<string>();
 		set.add(socketId);
 		this.fullAccessSockets.set(roomId, set);
+	}
+
+	registerParticipant(roomId: string, participantId: string): boolean {
+		this.cancelParticipantDisconnect(roomId, participantId);
+		const participants = this.activeParticipants.get(roomId) ?? new Set<string>();
+		const alreadyActive = participants.has(participantId);
+		participants.add(participantId);
+		this.activeParticipants.set(roomId, participants);
+		return alreadyActive;
+	}
+
+	participantIsActive(roomId: string, participantId: string): boolean {
+		return this.activeParticipants.get(roomId)?.has(participantId) ?? false;
+	}
+
+	cancelParticipantDisconnect(roomId: string, participantId: string): void {
+		const key = `${roomId}:${participantId}`;
+		const timer = this.disconnectTimers.get(key);
+		if (timer) {
+			clearTimeout(timer);
+			this.disconnectTimers.delete(key);
+		}
+	}
+
+	scheduleParticipantDisconnect(
+		roomId: string,
+		participantId: string,
+		cleanup: () => Promise<void> | void,
+	): void {
+		this.cancelParticipantDisconnect(roomId, participantId);
+		const key = `${roomId}:${participantId}`;
+		const timer = setTimeout(async () => {
+			this.disconnectTimers.delete(key);
+			if (!this.participantIsActive(roomId, participantId)) return;
+			await cleanup();
+		}, 5000);
+		this.disconnectTimers.set(key, timer);
+	}
+
+	removeParticipant(roomId: string, participantId: string): boolean {
+		this.cancelParticipantDisconnect(roomId, participantId);
+		const participants = this.activeParticipants.get(roomId);
+		if (!participants?.delete(participantId)) return false;
+		if (!participants.size) this.activeParticipants.delete(roomId);
+		return true;
 	}
 
 	addPreviewSocket(roomId: string, socketId: string): void {
@@ -65,8 +112,12 @@ export class RoomRegistry {
 	}
 
 	cleanupRoom(roomId: string): void {
+		for (const participantId of this.activeParticipants.get(roomId) ?? []) {
+			this.cancelParticipantDisconnect(roomId, participantId);
+		}
 		this.fullAccessSockets.delete(roomId);
 		this.previewSockets.delete(roomId);
+		this.activeParticipants.delete(roomId);
 		delete this.raisedHands[roomId];
 		delete this.hostOnlyChat[roomId];
 	}

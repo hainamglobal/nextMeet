@@ -62,7 +62,7 @@ export function useSFUConnection(deps: {
 	onScreenShareStarted: (data: SFUScreenShareData) => void;
 	onScreenShareStopped: (data: SFUScreenShareData) => void;
 	onActiveSpeakerChanged: (participantIds: string[]) => void;
-	onCallEnded: () => void;
+	onCallEnded: (reason?: "network-timeout") => void;
 }): SFUConnectionAPI {
 	const {
 		connectionState,
@@ -93,10 +93,35 @@ export function useSFUConnection(deps: {
 	let browserOffline = typeof navigator !== "undefined" && !navigator.onLine;
 	let socketDisconnected = false;
 	let transportDisconnected = false;
+	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	let reconnectInProgress = false;
+	let lastNetworkDisconnectAt: number | null = null;
+	let joinedUserData: Record<string, unknown> | null = null;
+	let joinedMediaState: Record<string, boolean> | null = null;
+	const NETWORK_GRACE_PERIOD_MS = 5000;
+
+	const clearReconnectTimer = () => {
+		if (reconnectTimer) clearTimeout(reconnectTimer);
+		reconnectTimer = null;
+		lastNetworkDisconnectAt = null;
+	};
 
 	const updateNetworkStatus = () => {
 		connectionState.isNetworkDisconnected = connectionState.isSetupComplete &&
 			(browserOffline || socketDisconnected || transportDisconnected);
+		if (connectionState.isNetworkDisconnected) {
+			if (!lastNetworkDisconnectAt) lastNetworkDisconnectAt = Date.now();
+			if (!reconnectTimer) {
+				reconnectTimer = setTimeout(() => {
+					reconnectTimer = null;
+					if (connectionState.isNetworkDisconnected && !reconnectInProgress) {
+						void endCall("network-timeout");
+					}
+				}, NETWORK_GRACE_PERIOD_MS);
+			}
+		} else {
+			clearReconnectTimer();
+		}
 	};
 
 	const handleSfuDisconnect = () => {
@@ -104,8 +129,12 @@ export function useSFUConnection(deps: {
 		updateNetworkStatus();
 	};
 	const handleSfuConnect = () => {
+		const wasDisconnected = socketDisconnected;
 		socketDisconnected = false;
 		updateNetworkStatus();
+		if (wasDisconnected && connectionState.isSetupComplete) {
+			void recoverAfterSocketReconnect();
+		}
 	};
 	const handleTransportNetworkChange = (disconnected: boolean) => {
 		transportDisconnected = disconnected;
@@ -131,11 +160,31 @@ export function useSFUConnection(deps: {
 		socket.on("connect_error", handleSfuDisconnect);
 	};
 
+	const recoverAfterSocketReconnect = async () => {
+		if (reconnectInProgress || !joinedUserData || !joinedMediaState) return;
+		reconnectInProgress = true;
+		try {
+			const manager = sfuManager.value;
+			if (!manager || !sfuClient.isConnected()) return;
+			await manager.joinRoom(joinedUserData, joinedMediaState);
+			await manager.setupExistingParticipants();
+			connectionState.isNetworkDisconnected = false;
+			clearReconnectTimer();
+		} catch (error) {
+			console.warn("SFU session recovery failed:", error);
+			socketDisconnected = true;
+			updateNetworkStatus();
+		} finally {
+			reconnectInProgress = false;
+		}
+	};
+
 	if (typeof window !== "undefined") {
 		window.addEventListener("offline", handleBrowserOffline);
 		window.addEventListener("online", handleBrowserOnline);
 	}
 	onUnmounted(() => {
+		clearReconnectTimer();
 		if (typeof window !== "undefined") {
 			window.removeEventListener("offline", handleBrowserOffline);
 			window.removeEventListener("online", handleBrowserOnline);
@@ -389,6 +438,11 @@ export function useSFUConnection(deps: {
 				audio_enabled: mediaState.isMicOn,
 				video_enabled: mediaState.isCameraOn,
 			});
+			joinedUserData = userData;
+			joinedMediaState = {
+				audio_enabled: mediaState.isMicOn,
+				video_enabled: mediaState.isCameraOn,
+			};
 
 			await manager.initializeDevice();
 			await manager.createReceiveTransport();
@@ -826,8 +880,10 @@ export function useSFUConnection(deps: {
 		}
 	};
 
-	const endCall = async () => {
+	const endCall = async (reason?: "network-timeout") => {
 		try {
+			clearReconnectTimer();
+			connectionState.isNetworkDisconnected = false;
 			stopGuestApprovalListener();
 
 			if (activeSpeakerTimeout.value) {
@@ -842,11 +898,13 @@ export function useSFUConnection(deps: {
 			}
 
 			sfuManager.value = null;
+			joinedUserData = null;
+			joinedMediaState = null;
 
-			onCallEnded();
+			onCallEnded(reason);
 		} catch (error) {
 			console.error("Error ending call:", error);
-			onCallEnded();
+			onCallEnded(reason);
 		}
 	};
 
@@ -867,6 +925,8 @@ export function useSFUConnection(deps: {
 			await sfuManager.value.cleanup();
 		}
 		sfuManager.value = null;
+		joinedUserData = null;
+		joinedMediaState = null;
 
 		realtimeListenersSetup.value = false;
 	});

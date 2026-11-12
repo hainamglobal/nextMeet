@@ -43,6 +43,10 @@ export function registerRoomJoinHandlers(deps: HandlerDeps) {
 			if (socket.scope === 'full') {
 				deps.registry.addFullAccessSocket(scopedRoomId, socket.id);
 				deps.mediasoup.addPeer(scopedRoomId, participantId, userData);
+				const participantWasActive = deps.registry.registerParticipant(
+					scopedRoomId,
+					participantId,
+				);
 				void publishPresence(
 					deps.mediasoup,
 					scopedRoomId,
@@ -52,7 +56,7 @@ export function registerRoomJoinHandlers(deps: HandlerDeps) {
 					socket.presenceCallbackUrl,
 				);
 
-				if (isRealParticipant(userData.userId)) {
+				if (!participantWasActive && isRealParticipant(userData.userId)) {
 					deps.registry.emitParticipantEvent(
 						scopedRoomId,
 						'participant_joined',
@@ -126,6 +130,9 @@ export function registerRoomJoinHandlers(deps: HandlerDeps) {
 			const participantId = socket.participantId;
 			if (roomId && participantId) {
 				try {
+					deps.registry.removeSocket(roomId, socket.id);
+					const wasActive = deps.registry.removeParticipant(roomId, participantId);
+					if (!wasActive) return;
 					await deps.mediasoup.removePeer(roomId, participantId);
 					void publishPresence(
 						deps.mediasoup,
@@ -153,6 +160,11 @@ export function registerRoomJoinHandlers(deps: HandlerDeps) {
 
 					socket.leave(roomId);
 					socket.roomId = undefined;
+					socket.participantId = undefined;
+					if (deps.registry.isEmpty(roomId)) {
+						deps.registry.cleanupRoom(roomId);
+						await deps.mediasoup.closeRoom(roomId);
+					}
 					loggers.socketHandler.info('%s left room %s', participantId, roomId);
 				} catch (e) {
 					loggers.socketHandler.warn(

@@ -601,6 +601,7 @@ export class SFUConnectionManager {
 			this.mediaManager.cleanup();
 			this.transportManager?.cleanup?.();
 			if (this.sfuClient) {
+				this.sfuClient.leaveRoom(this.meetingId);
 				await this.sfuClient.disconnect();
 			}
 			this.isConnected = false;

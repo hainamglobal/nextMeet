@@ -77,7 +77,9 @@
 					<p class="mb-2 text-sm font-semibold" style="color: #047857">Cuộc họp đã kết thúc</p>
 					<h1 class="text-3xl font-semibold" style="color: #17202a">Bạn đã rời khỏi cuộc họp</h1>
 					<p class="mx-auto mt-3 max-w-md text-sm leading-6" style="color: #4b5563">
-						Kết nối và các thiết bị trong cuộc họp đã được ngắt. Bạn có thể tham gia lại nếu cuộc họp vẫn còn mở.
+						{{ callEndedDueToNetwork
+							? "Bạn đã rời khỏi cuộc họp do mất kết nối mạng quá lâu."
+							: "Kết nối và các thiết bị trong cuộc họp đã được ngắt. Bạn có thể tham gia lại nếu cuộc họp vẫn còn mở." }}
 					</p>
 					<div class="mt-8 flex justify-center">
 						<Button variant="solid" size="lg" class="min-w-40" style="background-color: #e54e17; border-color: #e54e17; color: #ffffff" @click="rejoinMeeting">Tham gia lại</Button>
@@ -88,6 +90,25 @@
 					<p class="mt-8 text-xs" style="color: #6b7280">Mã cuộc họp <span class="ml-1 font-medium" style="color: #374151">{{ meetingId }}</span></p>
 				</section>
 			</main>
+		</div>
+
+		<!-- Network recovery state: replace the meeting surface until the session is healthy. -->
+		<div
+			v-else-if="connectionState.isNetworkDisconnected"
+			class="flex flex-1 items-center justify-center bg-gray-950 px-6 text-white"
+			role="status"
+			aria-live="polite"
+		>
+			<div class="flex w-full max-w-md flex-col items-center text-center">
+				<div class="relative mb-7 flex h-20 w-20 items-center justify-center rounded-full border border-blue-400/30 bg-gray-900">
+					<lucide-wifi-off class="h-9 w-9 text-blue-400" />
+					<lucide-loader class="absolute -right-2 -top-2 h-7 w-7 animate-spin text-blue-400" />
+				</div>
+				<h1 class="text-xl font-semibold sm:text-2xl">Bạn đã mất kết nối mạng</h1>
+				<p class="mt-3 text-sm leading-6 text-gray-300 sm:text-base">
+					Đang thử kết nối lại với cuộc họp...
+				</p>
+			</div>
 		</div>
 
 		<!-- Preview mode -->
@@ -200,16 +221,6 @@
 							/>
 						</div>
 					</Transition>
-				</div>
-
-				<div
-					v-if="connectionState.isNetworkDisconnected"
-					class="pointer-events-none fixed inset-x-0 top-0 z-[100] flex h-11 items-center gap-3 border-b border-white/10 bg-black px-4 text-white shadow-md sm:px-6"
-					role="status"
-					aria-live="polite"
-				>
-					<lucide-loader class="h-6 w-6 shrink-0 animate-spin text-blue-500" />
-					<p class="m-0 text-sm font-medium sm:text-base">Bạn bị mất kết nối mạng. Đang cố kết nối lại.</p>
 				</div>
 
 				<!-- Meeting controls are anchored to the meeting viewport so side panels do not shift them -->
@@ -356,6 +367,7 @@ const {
 } = useMeetingDoc();
 const meetingDoc = getMeetingDoc(meetingId.value);
 const callEnded = ref(false);
+const callEndedDueToNetwork = ref(false);
 
 // --- Background effects & noise cancellation ---
 const backgroundEffects = useBackgroundEffects();
@@ -386,7 +398,8 @@ const sfuConnection = useSFUConnection({
 	lobbyStore,
 	gridLayout,
 	meetingId: meetingId.value,
-	onCallEnded: () => {
+	onCallEnded: (reason?: "network-timeout") => {
+		callEndedDueToNetwork.value = reason === "network-timeout";
 		showCallEndedScreen();
 	},
 	notifiedLobbyUsers,
@@ -688,6 +701,7 @@ function showCallEndedScreen() {
 
 async function rejoinMeeting() {
 	callEnded.value = false;
+	callEndedDueToNetwork.value = false;
 	connectionState.$reset();
 	if (session.isLoggedIn) {
 		await sfuConnection.joinMeetingRoom();

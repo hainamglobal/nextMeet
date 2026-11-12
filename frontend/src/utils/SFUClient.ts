@@ -609,6 +609,11 @@ export class SFUClient {
 		});
 	}
 
+	leaveRoom(roomId: string | null = this.connectionDetails.meetingId): void {
+		if (!roomId || !this.socket?.connected) return;
+		this.socket.emit("leave_room", { roomId });
+	}
+
 	// ==================== SIGNALING OPERATIONS ====================
 
 	sendWebRtcOffer(targetUser: unknown, signalData: unknown): void {
