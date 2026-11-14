@@ -254,7 +254,7 @@ def delete_mtp_meeting(
 	return {"deleted": True, "name": meeting_id}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def invite_meeting_user(
 	meeting_id: str,
 	invitee_email: str,
@@ -279,7 +279,7 @@ def invite_meeting_user(
 	return results[0]
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def invite_meeting_users(
 	meeting_id: str,
 	invitee_emails: list[str] | str,
@@ -350,8 +350,8 @@ def invite_meeting_users(
 			if clean_email in active_cohosts:
 				frappe.throw(_("Người dùng {0} đã là đồng chủ phòng").format(clean_email), frappe.ValidationError)
 		elif invitation_type == "Participant":
-			if clean_email in active_cohosts:
-				frappe.throw(_("Người dùng {0} đã là đồng chủ phòng trong cuộc họp này").format(clean_email), frappe.ValidationError)
+			# Hai luồng mời độc lập: người dùng là đồng chủ phòng vẫn có thể nhận lời mời người tham gia
+			pass
 
 		invitation_key = (clean_email, invitation_type)
 		invitation = existing_invitations.get(invitation_key)
@@ -360,8 +360,10 @@ def invite_meeting_users(
 			if invitation.status == "Invited" and not _invitation_expired(invitation, now):
 				frappe.throw(_("Người dùng {0} đã có lời mời đang chờ xử lý").format(clean_email), frappe.ValidationError)
 			if invitation.status == "Accepted":
-				msg = _("Người dùng {0} đã là đồng chủ phòng") if invitation_type == "CoHost" else _("Người dùng {0} đã tham gia cuộc họp")
-				frappe.throw(msg.format(clean_email), frappe.ValidationError)
+				if invitation_type == "CoHost" and clean_email in active_cohosts:
+					frappe.throw(_("Người dùng {0} đã là đồng chủ phòng").format(clean_email), frappe.ValidationError)
+				elif invitation_type == "Participant":
+					frappe.throw(_("Người dùng {0} đã tham gia cuộc họp").format(clean_email), frappe.ValidationError)
 
 			invitation.status = "Invited"
 			invitation.responded_on = None
@@ -420,7 +422,7 @@ def invite_meeting_users(
 	return results
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def invite_meeting_co_host(
 	meeting_id: str,
 	invitee_email: str,
@@ -440,7 +442,7 @@ def invite_meeting_co_host(
 	)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def revoke_meeting_invitation(
 	meeting_id: str,
 	invitation_id: str,
@@ -478,7 +480,7 @@ def revoke_meeting_invitation(
 	}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def add_meeting_co_host(
 	meeting_id: str,
 	co_host_email: str,
@@ -780,7 +782,7 @@ def get_user_meeting(
 	return result
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def respond_meeting_invitation(
 	meeting_id: str,
 	invitation_id: str,
@@ -868,7 +870,7 @@ def respond_meeting_invitation(
 	}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def respond_meeting_co_host_invitation(
 	meeting_id: str,
 	invitation_id: str,

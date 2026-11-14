@@ -36,6 +36,10 @@ ALLOWED_METHODS = {
 	"meet.api.meeting.respond_meeting_invitation",
 	"meet.api.meeting.respond_meeting_co_host_invitation",
 	"meet.api.integration.record_user_domain",
+	"frappe.client.get",
+	"frappe.client.get_value",
+	"frappe.client.set_value",
+	"frappe.client.insert",
 }
 
 
