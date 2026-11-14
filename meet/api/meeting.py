@@ -190,7 +190,7 @@ def can_invite_meeting_users(
 
 @frappe.whitelist()
 def set_meeting_co_hosts(meeting_id: str, co_host_emails: str, actor_email: str, expected_host_name: str | None = None) -> list[dict]:
-	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email, allow_co_host=False)
 	try:
 		emails = frappe.parse_json(co_host_emails) if isinstance(co_host_emails, str) else co_host_emails
 	except Exception:
@@ -262,7 +262,9 @@ def invite_meeting_user(
 	actor_name: str = "",
 	invitation_type: str = "Participant",
 	expected_host_name: str | None = None,
+	invitee_name: str = "",
 ) -> dict:
+	names = {invitee_email.strip().lower(): invitee_name} if invitee_name else None
 	results = invite_meeting_users(
 		meeting_id=meeting_id,
 		invitee_emails=[invitee_email],
@@ -270,6 +272,7 @@ def invite_meeting_user(
 		actor_name=actor_name,
 		invitation_type=invitation_type,
 		expected_host_name=expected_host_name,
+		invitee_names=names,
 	)
 	if not results:
 		frappe.throw(_("Could not invite user"), frappe.ValidationError)
@@ -284,8 +287,17 @@ def invite_meeting_users(
 	actor_name: str = "",
 	invitation_type: str = "Participant",
 	expected_host_name: str | None = None,
+	invitee_names: dict | None = None,
 ) -> list[dict]:
-	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	if invitation_type not in {"Participant", "CoHost"}:
+		frappe.throw(_("Invalid invitation type"), frappe.ValidationError)
+
+	meeting = _get_mtp_managed_meeting(
+		meeting_id,
+		expected_host_name,
+		actor_email,
+		allow_co_host=(invitation_type == "Participant"),
+	)
 	if isinstance(invitee_emails, str):
 		invitee_emails = (
 			frappe.parse_json(invitee_emails)
@@ -294,8 +306,6 @@ def invite_meeting_users(
 		)
 	if not isinstance(invitee_emails, (list, tuple)):
 		frappe.throw(_("invitee_emails must be a list of email addresses"), frappe.ValidationError)
-	if invitation_type not in {"Participant", "CoHost"}:
-		frappe.throw(_("Invalid invitation type"), frappe.ValidationError)
 
 	now = now_datetime()
 	host_email = (meeting.created_by_email or "").strip().lower()
@@ -322,29 +332,44 @@ def invite_meeting_users(
 	if duplicate_rows:
 		meeting.set("invitations", [row for row in meeting.invitations if row not in duplicate_rows])
 
+	active_cohosts = {
+		str(row.user or "").strip().lower()
+		for row in (meeting.co_hosts or [])
+		if row.user
+	}
+
 	created_invitations = []
 	for raw_email in invitee_emails:
 		clean_email = (raw_email or "").strip().lower()
 		if not clean_email or "@" not in clean_email:
 			continue
 		if clean_email == host_email:
-			continue
+			frappe.throw(_("Người này là chủ phòng, không thể gửi lời mời"), frappe.ValidationError)
+
+		if invitation_type == "CoHost":
+			if clean_email in active_cohosts:
+				frappe.throw(_("Người dùng {0} đã là đồng chủ phòng").format(clean_email), frappe.ValidationError)
+		elif invitation_type == "Participant":
+			if clean_email in active_cohosts:
+				frappe.throw(_("Người dùng {0} đã là đồng chủ phòng trong cuộc họp này").format(clean_email), frappe.ValidationError)
+
 		invitation_key = (clean_email, invitation_type)
 		invitation = existing_invitations.get(invitation_key)
+		disp_name = (invitee_names.get(clean_email) if isinstance(invitee_names, dict) else "") or clean_email
 		if invitation:
-			# An active or accepted invitation is already the requested result.
-			# Expired/declined invitations are re-opened using the same row/id.
 			if invitation.status == "Invited" and not _invitation_expired(invitation, now):
-				created_invitations.append((invitation, clean_email, False))
-				continue
+				frappe.throw(_("Người dùng {0} đã có lời mời đang chờ xử lý").format(clean_email), frappe.ValidationError)
 			if invitation.status == "Accepted":
-				created_invitations.append((invitation, clean_email, False))
-				continue
+				msg = _("Người dùng {0} đã là đồng chủ phòng") if invitation_type == "CoHost" else _("Người dùng {0} đã tham gia cuộc họp")
+				frappe.throw(msg.format(clean_email), frappe.ValidationError)
+
 			invitation.status = "Invited"
 			invitation.responded_on = None
 			invitation.invited_on = now
 			invitation.invited_by = actor_email.strip().lower()
 			invitation.invited_by_name = (actor_name or meeting.created_by_name or actor_email).strip()[:140]
+			if disp_name and disp_name != clean_email:
+				invitation.invitee_name = disp_name
 			created_invitations.append((invitation, clean_email, True))
 			continue
 
@@ -352,7 +377,7 @@ def invite_meeting_users(
 			"invitation_id": secrets.token_urlsafe(18),
 			"invitation_type": invitation_type,
 			"invitee_email": clean_email,
-			"invitee_name": clean_email,
+			"invitee_name": disp_name,
 			"invited_by": actor_email.strip().lower(),
 			"invited_by_name": (actor_name or meeting.created_by_name or actor_email).strip()[:140],
 			"status": "Invited",
@@ -402,6 +427,7 @@ def invite_meeting_co_host(
 	actor_email: str,
 	actor_name: str = "",
 	expected_host_name: str | None = None,
+	invitee_name: str = "",
 ) -> dict:
 	return invite_meeting_user(
 		meeting_id=meeting_id,
@@ -410,7 +436,46 @@ def invite_meeting_co_host(
 		actor_name=actor_name,
 		invitation_type="CoHost",
 		expected_host_name=expected_host_name,
+		invitee_name=invitee_name,
 	)
+
+
+@frappe.whitelist()
+def revoke_meeting_invitation(
+	meeting_id: str,
+	invitation_id: str,
+	actor_email: str,
+	expected_host_name: str | None = None,
+) -> dict:
+	actor_email = (actor_email or "").strip().lower()
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	host_name = (expected_host_name or frappe.local.site).strip().lower().rstrip(".")
+	if (meeting.host_name or "").strip().lower().rstrip(".") != host_name or meeting.is_deleted:
+		frappe.throw(_("Meeting is not available"), frappe.PermissionError)
+	invitation = next((row for row in meeting.invitations or [] if row.invitation_id == invitation_id), None)
+	if not invitation:
+		frappe.throw(_("Lời mời không tồn tại"), frappe.DoesNotExistError)
+	is_creator = _is_meeting_creator(meeting, actor_email)
+	is_co_host = any((row.user or "").strip().lower() == actor_email for row in meeting.co_hosts or [])
+	roles = frappe.get_roles(frappe.session.user) or []
+	is_admin = "System Manager" in roles or "Administrator" in roles or frappe.session.user == "Administrator"
+
+	if invitation.invitation_type == "CoHost":
+		if not is_creator and not is_admin:
+			frappe.throw(_("Chỉ người tạo cuộc họp mới có quyền thu hồi lời mời đồng chủ phòng"), frappe.PermissionError)
+	else:
+		if not is_creator and not is_co_host and not is_admin:
+			frappe.throw(_("Chỉ người quản trị phòng mới có quyền thu hồi lời mời"), frappe.PermissionError)
+
+	invitation.status = "Revoked"
+	invitation.responded_on = now_datetime()
+	meeting.save(ignore_permissions=True)
+	return {
+		"meeting_id": meeting_id,
+		"invitation_id": invitation_id,
+		"status": "Revoked",
+		"invitee_email": invitation.invitee_email,
+	}
 
 
 @frappe.whitelist()
@@ -421,7 +486,7 @@ def add_meeting_co_host(
 	actor_email: str,
 	expected_host_name: str | None = None,
 ) -> dict:
-	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email)
+	meeting = _get_mtp_managed_meeting(meeting_id, expected_host_name, actor_email, allow_co_host=False)
 	email = (co_host_email or "").strip().lower()
 	name = (co_host_name or email).strip()[:140]
 	if not email or "@" not in email:
