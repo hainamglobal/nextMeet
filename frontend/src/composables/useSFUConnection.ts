@@ -260,12 +260,12 @@ export function useSFUConnection(deps: {
 			message: `${participantName} đã tham gia cuộc họp`,
 			icon: participant.avatar
 				? h("img", {
-						src: participant.avatar as string,
-						class: "rounded-full",
-					})
+					src: participant.avatar as string,
+					class: "rounded-full",
+				})
 				: h(LucideUserIcon, {
-						class: "text-white",
-					}),
+					class: "text-white",
+				}),
 			duration: 3,
 		});
 	};
@@ -294,12 +294,12 @@ export function useSFUConnection(deps: {
 			message: `${participantName} đã rời cuộc họp`,
 			icon: participant?.avatar
 				? h("img", {
-						src: participant.avatar as string,
-						class: "rounded-full",
-					})
+					src: participant.avatar as string,
+					class: "rounded-full",
+				})
 				: h(LucideUserIcon, {
-						class: "text-white",
-					}),
+					class: "text-white",
+				}),
 			duration: 3,
 		});
 	};
