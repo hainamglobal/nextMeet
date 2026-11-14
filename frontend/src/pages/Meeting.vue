@@ -92,28 +92,9 @@
 			</main>
 		</div>
 
-		<!-- Network recovery state: replace the meeting surface until the session is healthy. -->
-		<div
-			v-else-if="connectionState.isNetworkDisconnected"
-			class="flex flex-1 items-center justify-center bg-gray-950 px-6 text-white"
-			role="status"
-			aria-live="polite"
-		>
-			<div class="flex w-full max-w-md flex-col items-center text-center">
-				<div class="relative mb-7 flex h-20 w-20 items-center justify-center rounded-full border border-blue-400/30 bg-gray-900">
-					<lucide-wifi-off class="h-9 w-9 text-blue-400" />
-					<lucide-loader class="absolute -right-2 -top-2 h-7 w-7 animate-spin text-blue-400" />
-				</div>
-				<h1 class="text-xl font-semibold sm:text-2xl">Bạn đã mất kết nối mạng</h1>
-				<p class="mt-3 text-sm leading-6 text-gray-300 sm:text-base">
-					Đang thử kết nối lại với cuộc họp...
-				</p>
-			</div>
-		</div>
-
 		<!-- Preview mode -->
 		<MeetingPreview
-			v-else-if="showPreview"
+			v-if="showPreview"
 			:meetingId="meetingId"
 			:isCameraOn="mediaState.isCameraOn"
 			:isMicOn="mediaState.isMicOn"
@@ -265,6 +246,34 @@
 			/>
 
 			<RejectionOverlay v-if="isRejected && isGuestSession" @leave="goHome" />
+
+			<!-- Network recovery overlay: overlays the meeting without destroying the DOM / video elements -->
+			<Transition
+				enter-active-class="transition-opacity duration-300 ease-out"
+				enter-from-class="opacity-0"
+				enter-to-class="opacity-100"
+				leave-active-class="transition-opacity duration-200 ease-in"
+				leave-from-class="opacity-100"
+				leave-to-class="opacity-0"
+			>
+				<div
+					v-if="connectionState.isNetworkDisconnected"
+					class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/80 backdrop-blur-sm px-6 text-white"
+					role="status"
+					aria-live="polite"
+				>
+					<div class="flex w-full max-w-md flex-col items-center text-center">
+						<div class="relative mb-7 flex h-20 w-20 items-center justify-center rounded-full border border-blue-400/30 bg-gray-900">
+							<lucide-wifi-off class="h-9 w-9 text-blue-400" />
+							<lucide-loader class="absolute -right-2 -top-2 h-7 w-7 animate-spin text-blue-400" />
+						</div>
+						<h1 class="text-xl font-semibold sm:text-2xl">Bạn đã mất kết nối mạng</h1>
+						<p class="mt-3 text-sm leading-6 text-gray-300 sm:text-base">
+							Đang thử kết nối lại với cuộc họp...
+						</p>
+					</div>
+				</div>
+			</Transition>
 		</template>
 
 		<!-- Chat notifications -->

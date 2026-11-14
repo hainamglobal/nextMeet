@@ -57,6 +57,7 @@ declare module 'vue' {
     LucideUserX: typeof import('~icons/lucide/user-x')['default']
     LucideVideo: typeof import('~icons/lucide/video')['default']
     LucideVideoOff: typeof import('~icons/lucide/video-off')['default']
+    LucideWifiOff: typeof import('~icons/lucide/wifi-off')['default']
     LucideX: typeof import('~icons/lucide/x')['default']
     LucideXCircle: typeof import('~icons/lucide/x-circle')['default']
     MeetingAccessSettingsTab: typeof import('./src/components/settings/MeetingAccessSettingsTab.vue')['default']

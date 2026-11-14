@@ -57,7 +57,7 @@ export class RoomRegistry {
 			this.disconnectTimers.delete(key);
 			if (!this.participantIsActive(roomId, participantId)) return;
 			await cleanup();
-		}, 5000);
+		}, 20000);
 		this.disconnectTimers.set(key, timer);
 	}
 

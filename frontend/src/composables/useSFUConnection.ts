@@ -98,19 +98,36 @@ export function useSFUConnection(deps: {
 	let lastNetworkDisconnectAt: number | null = null;
 	let joinedUserData: Record<string, unknown> | null = null;
 	let joinedMediaState: Record<string, boolean> | null = null;
-	const NETWORK_GRACE_PERIOD_MS = 5000;
+	const NETWORK_GRACE_PERIOD_MS = 20000;
+	const NETWORK_DEBOUNCE_MS = 1500;
+	let networkDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const clearReconnectTimer = () => {
+		if (networkDebounceTimer) {
+			clearTimeout(networkDebounceTimer);
+			networkDebounceTimer = null;
+		}
 		if (reconnectTimer) clearTimeout(reconnectTimer);
 		reconnectTimer = null;
 		lastNetworkDisconnectAt = null;
 	};
 
 	const updateNetworkStatus = () => {
-		connectionState.isNetworkDisconnected = connectionState.isSetupComplete &&
+		const isDisconnected = connectionState.isSetupComplete &&
 			(browserOffline || socketDisconnected || transportDisconnected);
-		if (connectionState.isNetworkDisconnected) {
+
+		if (isDisconnected) {
 			if (!lastNetworkDisconnectAt) lastNetworkDisconnectAt = Date.now();
+			if (!networkDebounceTimer && !connectionState.isNetworkDisconnected) {
+				networkDebounceTimer = setTimeout(() => {
+					networkDebounceTimer = null;
+					const stillDisconnected = connectionState.isSetupComplete &&
+						(browserOffline || socketDisconnected || transportDisconnected);
+					if (stillDisconnected) {
+						connectionState.isNetworkDisconnected = true;
+					}
+				}, NETWORK_DEBOUNCE_MS);
+			}
 			if (!reconnectTimer) {
 				reconnectTimer = setTimeout(() => {
 					reconnectTimer = null;
@@ -120,6 +137,11 @@ export function useSFUConnection(deps: {
 				}, NETWORK_GRACE_PERIOD_MS);
 			}
 		} else {
+			if (networkDebounceTimer) {
+				clearTimeout(networkDebounceTimer);
+				networkDebounceTimer = null;
+			}
+			connectionState.isNetworkDisconnected = false;
 			clearReconnectTimer();
 		}
 	};
@@ -168,11 +190,12 @@ export function useSFUConnection(deps: {
 			if (!manager || !sfuClient.isConnected()) return;
 			await manager.joinRoom(joinedUserData, joinedMediaState);
 			await manager.setupExistingParticipants();
+			socketDisconnected = false;
 			connectionState.isNetworkDisconnected = false;
 			clearReconnectTimer();
 		} catch (error) {
 			console.warn("SFU session recovery failed:", error);
-			socketDisconnected = true;
+			socketDisconnected = !sfuClient.isConnected();
 			updateNetworkStatus();
 		} finally {
 			reconnectInProgress = false;
