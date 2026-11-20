@@ -904,7 +904,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 						toast.error(
 							isPermissionError
 								? "Quyền truy cập camera bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
-								: "Failed to access camera",
+							: "Không thể bật camera. Vui lòng kiểm tra kết nối hoặc cài đặt quyền riêng tư.",
 						);
 						return;
 					}
@@ -934,7 +934,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 							toast.error(
 								isPermissionError
 									? "Quyền truy cập camera bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
-									: "Could not enable camera",
+									: "Không thể bật camera. Vui lòng kiểm tra kết nối hoặc cài đặt quyền riêng tư.",
 							);
 							return;
 						}
@@ -968,7 +968,7 @@ export function useMediaControls(deps: MediaControlsDeps): MediaControlsAPI {
 								toast.error(
 									isPermissionError
 										? "Quyền truy cập camera bị từ chối. Hãy bật quyền trong cài đặt trình duyệt."
-										: "Could not enable camera",
+									: "Không thể bật camera. Vui lòng kiểm tra kết nối hoặc cài đặt quyền riêng tư.",
 								);
 								return;
 							}
