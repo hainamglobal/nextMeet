@@ -229,6 +229,41 @@ def update_meeting_title(
 	return {"name": meeting.name, "meeting_title": meeting.meeting_title}
 
 
+@frappe.whitelist(allow_guest=True)
+def update_meeting_settings(
+	meeting_id: str,
+	meeting_type: str | None = None,
+	host_only_chat: int | None = None,
+	allow_guest: int | None = None,
+	guest_id: str | None = None,
+) -> dict:
+	"""Update meeting settings for an authenticated user or host guest session."""
+	meeting: SaeMeeting = frappe.get_doc("Sae Meeting", meeting_id)
+	caller = _get_meeting_caller(meeting, guest_id)
+	if not caller or not meeting.is_host_or_cohost(caller):
+		frappe.throw(_("Only the meeting host or a co-host can update settings"), frappe.PermissionError)
+
+	if meeting_type is not None:
+		if meeting_type not in ["open", "restricted"]:
+			frappe.throw(_("Invalid meeting type"), frappe.ValidationError)
+		meeting.meeting_type = meeting_type
+	if host_only_chat is not None:
+		meeting.host_only_chat = bool(host_only_chat)
+	if allow_guest is not None:
+		global_settings = frappe.get_cached_doc("Sae Settings")
+		if not global_settings.allow_guest and allow_guest:
+			frappe.throw(_("Guest access is disabled globally"), frappe.ValidationError)
+		meeting.allow_guest = bool(allow_guest)
+
+	meeting.save(ignore_permissions=True)
+	return {
+		"meeting_id": meeting.name,
+		"meeting_type": meeting.meeting_type,
+		"host_only_chat": bool(meeting.host_only_chat),
+		"allow_guest": bool(meeting.allow_guest),
+	}
+
+
 @frappe.whitelist()
 def delete_mtp_meeting(
 	meeting_id: str,

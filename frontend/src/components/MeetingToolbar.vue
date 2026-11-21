@@ -1,5 +1,6 @@
 <template>
 	<div
+		v-if="!showSettingsDialog"
 		class="pointer-events-none w-full overflow-visible shrink-0 transition-[height,margin] duration-500 ease-in-out"
 		:class="{ 'mt-2 mb-2': isVisible }"
 		:style="{ height: toolbarHeight }"
