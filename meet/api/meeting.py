@@ -1257,7 +1257,7 @@ def get_sfu_presence_preview_token(
 	expected_host_name: str | None = None,
 	actor_email: str | None = None,
 ) -> dict:
-	"""Get a short-lived presence token, with kick permission for the creator.
+	"""Get a short-lived presence token, with kick permission for host/co-host.
 
 	This is used by the meeting preview page to fetch live participants
 	from the SFU without granting media capabilities.
@@ -1296,6 +1296,7 @@ def get_sfu_presence_preview_token(
 		expires_in=expiry_seconds,
 		session_id=session_id,
 		is_host=can_manage_participants,
+		is_cohost=is_co_host,
 	)
 
 	return {

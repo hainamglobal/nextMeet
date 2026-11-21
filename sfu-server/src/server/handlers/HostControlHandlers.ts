@@ -8,11 +8,11 @@ export function registerHostControlHandlers(deps: HandlerDeps) {
 		socket.on('host_control', async (data) => {
 			try {
 				const { action, targetParticipantId } = data;
-				const isCreatorPreviewKick =
+				const isManagerPreviewKick =
 					socket.scope === 'presence-preview' &&
-					socket.isHost &&
+					(socket.isHost || socket.isCohost) &&
 					action === 'kick_participant';
-				if (!isCreatorPreviewKick) {
+				if (!isManagerPreviewKick) {
 					deps.authManager.ensureFullAccess(socket);
 				}
 				const roomId = socket.roomId;
@@ -84,20 +84,6 @@ export function registerHostControlHandlers(deps: HandlerDeps) {
 						);
 						break;
 					case 'kick_participant':
-						if (!socket.isHost) {
-							socket.emit('sfu_error', {
-								error: 'Only the meeting creator can remove participants',
-								timestamp: new Date().toISOString(),
-							});
-							loggers.socketHandler.warn(
-								'Co-host %s attempted to remove participant %s from room %s',
-								socket.participantId,
-								targetParticipantId,
-								roomId,
-							);
-							return;
-						}
-
 						targetSocket.emit('host_control_update', {
 							action,
 							targetParticipantId,
@@ -106,7 +92,8 @@ export function registerHostControlHandlers(deps: HandlerDeps) {
 						});
 
 						loggers.socketHandler.info(
-							'Host %s kicked participant %s from room %s',
+							'%s %s kicked participant %s from room %s',
+							socket.isCohost ? 'Co-host' : 'Host',
 							socket.participantId,
 							targetParticipantId,
 							roomId,

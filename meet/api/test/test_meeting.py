@@ -90,7 +90,7 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 			"sfu_server_port": 3000,
 		},
 	)
-	def test_presence_preview_token_grants_kick_permission_only_to_creator(self, _get_sfu_config):
+	def test_presence_preview_token_grants_kick_permission_to_creator_and_cohost(self, _get_sfu_config):
 		self.meeting.host_name = frappe.local.site
 		self.meeting.created_by_email = self.host_email
 		self.meeting.add_user_to_table("members", self.member_email, save=True, ignore_permissions=True)
@@ -117,6 +117,23 @@ class IntegrationTestMeetingApi(IntegrationTestCase):
 		member_payload = jwt.decode(member_result["auth_token"], "test-sfu-secret", algorithms=["HS256"])
 		self.assertFalse(member_result["is_creator"])
 		self.assertFalse(member_payload["is_host"])
+
+		set_meeting_co_hosts(
+			self.meeting.name,
+			frappe.as_json([self.member_email]),
+			actor_email=self.host_email,
+			expected_host_name=frappe.local.site,
+		)
+		cohost_result = get_sfu_presence_preview_token(
+			self.meeting.name,
+			expected_host_name=frappe.local.site,
+			actor_email=self.member_email,
+		)
+		cohost_payload = jwt.decode(cohost_result["auth_token"], "test-sfu-secret", algorithms=["HS256"])
+		self.assertFalse(cohost_result["is_creator"])
+		self.assertTrue(cohost_result["can_manage_participants"])
+		self.assertTrue(cohost_payload["is_host"])
+		self.assertTrue(cohost_payload["is_cohost"])
 
 	def test_restricted_meeting_non_member_cannot_get_sfu_connection_details(self):
 		frappe.set_user(self.outsider_email)

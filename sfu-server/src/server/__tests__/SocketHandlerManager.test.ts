@@ -248,7 +248,7 @@ describe('SocketHandlerManager characterization', () => {
 		).toBe(false);
 	});
 
-	it('host_control only allows the meeting creator to kick participants', async () => {
+	it('host_control allows a co-host to kick participants', async () => {
 		const harness = createManager();
 		const cohost = connectFullSocket(harness, {
 			id: 'sock-cohost-kick',
@@ -280,19 +280,13 @@ describe('SocketHandlerManager characterization', () => {
 		});
 		await new Promise((r) => setImmediate(r));
 
-		expect(cohost.emitCalls).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					event: 'sfu_error',
-					data: expect.objectContaining({
-						error: 'Only the meeting creator can remove participants',
-					}),
-				}),
-			]),
-		);
 		expect(
-			target.emitCalls.some((call) => call.event === 'host_control_update'),
-		).toBe(false);
+			target.emitCalls.some(
+				(call) =>
+					call.event === 'host_control_update' &&
+					(call.data as { action?: string })?.action === 'kick_participant',
+			),
+		).toBe(true);
 	});
 
 	it('a creator presence-preview socket can kick without joining as a media peer', async () => {
